@@ -1,0 +1,10 @@
+{
+  "fecha": "2026-11-03",
+  "archivos_originales": {
+    "CALIBRACION_6_SERVOS.ino": "bb09a460e27fc334ad110d34b30b837dd24f19226b7416f081698b2ee059215f",
+    "CAMINATA_2_0_EXPERIMENTAL.ino": "369a633a2732a31c95b169b4e1c13f629a43a84222c63931e61be05693dd7d0d",
+    "CAMINATA_FLUIDA_PROBADA.ino": "bb4b2d25a1e3386554b70b9b36f1918559b37d31c1cbbd22a0228d2783f8bdd4",
+    "README_DOGBOT_MASTER.md": "eec196b2729a7e07e2116c57479c1497050236d145f15be3251e6378561dcc9e"
+  },
+  "nota": "SHA-256 para comprobar conservación de los cuatro archivos fuente originales. No constituye compilación ni prueba en hardware."
+}
