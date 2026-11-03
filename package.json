@@ -1,0 +1,53 @@
+{
+  "name": "dogbot-control",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Dog Bot Control: dashboard local (simulación + robot real) con servicio Node.js para COM y Arduino CLI",
+  "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "build": "npm run build:web && npm run build:service",
+    "build:web": "vite build",
+    "build:service": "node scripts/build-service.mjs",
+    "build:preview": "vite build --mode preview --outDir dist/preview",
+    "start": "node dist/service/index.js",
+    "dev": "node scripts/dev.mjs",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "check": "npm run typecheck && npm run test && npm run build"
+  },
+  "dependencies": {
+    "serialport": "13.0.0",
+    "ws": "8.22.0"
+  },
+  "devDependencies": {
+    "@codemirror/commands": "6.11.0",
+    "@codemirror/lang-cpp": "6.0.3",
+    "@codemirror/language": "6.13.0",
+    "@codemirror/search": "6.7.2",
+    "@codemirror/state": "6.7.5",
+    "@codemirror/view": "6.43.14",
+    "@fontsource/inter": "5.2.8",
+    "@fontsource/jetbrains-mono": "5.2.8",
+    "@lezer/highlight": "1.2.5",
+    "@types/node": "24.19.2",
+    "esbuild": "0.27.2",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.7",
+    "@types/three": "0.186.0",
+    "@types/ws": "8.18.2",
+    "@vitejs/plugin-react": "5.1.4",
+    "react": "19.2.9",
+    "react-dom": "19.2.9",
+    "three": "0.186.1",
+    "typescript": "6.0.3",
+    "vite": "7.3.6",
+    "vitest": "4.1.11",
+    "zustand": "5.0.15"
+  },
+  "overrides": {
+    "vite": "$vite"
+  }
+}
