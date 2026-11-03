@@ -161,7 +161,7 @@ export class ProtocolClient {
     this.session = 1 + Math.floor(Math.random() * 65534);
     this.bootTimer = setTimeout(() => {
       this.bootTimer = null;
-      void this.identify();
+      this.identify().catch(() => undefined);
     }, this.opts.bootWaitMs);
     this.flushTimer = setInterval(() => this.flush(), this.opts.flushIntervalMs);
   }
@@ -284,7 +284,7 @@ export class ProtocolClient {
       this.flushTimer = keepFlush ?? setInterval(() => this.flush(), this.opts.flushIntervalMs);
     }
     this.setState('identificando', 'BOOT recibido');
-    void this.identify();
+    this.identify().catch(() => undefined);
   }
 
   private onOk(p: Pending, m: FwMessage & { kind: 'ok' }) {
