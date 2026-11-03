@@ -60,6 +60,7 @@ La guía detallada, con la primera conexión al robot, está en
 - [Compilación y carga de firmware](docs/CARGA_FIRMWARE.md)
 - [Pruebas hechas y pruebas físicas pendientes](docs/PRUEBAS.md)
 - [Decisiones, estado y próximos pasos (4 patas, Raspberry Pi 4)](docs/DECISIONES_Y_ESTADO.md)
+- [**Plan de trabajo · Fase 1: pararse y caminar con Arduino**](docs/PLAN_FASE1.md) · [Plantilla de medidas del robot](docs/MEDICIONES_ROBOT.md)
 
 ## Arquitectura (resumen)
 
