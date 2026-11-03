@@ -1,0 +1,378 @@
+{
+  "schema": "dogbot-perfil",
+  "version": 1,
+  "id": "dogbot-inicial",
+  "nombre": "Perfil inicial — 6 canales probados, sin calibrar",
+  "robot": "Dog Bot (Arduino UNO + PCA9685 0x40, 50 Hz)",
+  "creado": "2026-11-03T12:00:00.000Z",
+  "modificado": "2026-11-03T12:00:00.000Z",
+  "notas": "Canales 0–5 probados suspendidos; límites, referencias y sentidos de 3/4/5 pendientes. Posteriores sin asignación física. Los límites históricos no son límites mecánicos validados.",
+  "joints": [
+    {
+      "joint": "D1-cadera",
+      "canal": 2,
+      "canalEstado": "probado",
+      "transmisionPermitida": true,
+      "efectoPulsoMas": "Hacia afuera del cuerpo (comprobado por el usuario)",
+      "efectoConfirmado": true,
+      "minUs": null,
+      "refUs": null,
+      "maxUs": null,
+      "exploracion": null,
+      "calibracion": {
+        "estado": "sin-calibrar",
+        "fecha": null,
+        "origen": null,
+        "notas": ""
+      },
+      "visual": {
+        "signo": 1,
+        "usPorGrado": 11.11111111111111,
+        "offsetGrados": 0,
+        "fuenteSigno": "Dossier: +µs abre hacia afuera"
+      },
+      "historico": [
+        {
+          "minUs": 1300,
+          "maxUs": 1700,
+          "fuente": "CAMINATA_FLUIDA_PROBADA.ino: banda global de software (no límite mecánico)"
+        },
+        {
+          "minUs": 1400,
+          "maxUs": 1600,
+          "fuente": "CAMINATA_2_0_EXPERIMENTAL.ino: límites provisionales NO probados"
+        }
+      ]
+    },
+    {
+      "joint": "D1-superior",
+      "canal": 0,
+      "canalEstado": "probado",
+      "transmisionPermitida": true,
+      "efectoPulsoMas": "Hacia atrás (comprobado por el usuario)",
+      "efectoConfirmado": true,
+      "minUs": null,
+      "refUs": null,
+      "maxUs": null,
+      "exploracion": null,
+      "calibracion": {
+        "estado": "sin-calibrar",
+        "fecha": null,
+        "origen": null,
+        "notas": ""
+      },
+      "visual": {
+        "signo": -1,
+        "usPorGrado": 11.11111111111111,
+        "offsetGrados": -30,
+        "fuenteSigno": "Dossier: +µs mueve hacia atrás"
+      },
+      "historico": [
+        {
+          "minUs": 1300,
+          "maxUs": 1700,
+          "fuente": "CAMINATA_FLUIDA_PROBADA.ino: banda global de software (no límite mecánico)"
+        },
+        {
+          "minUs": 1250,
+          "maxUs": 1750,
+          "fuente": "CAMINATA_2_0_EXPERIMENTAL.ino: límites provisionales NO probados"
+        }
+      ]
+    },
+    {
+      "joint": "D1-inferior",
+      "canal": 1,
+      "canalEstado": "probado",
+      "transmisionPermitida": true,
+      "efectoPulsoMas": "Extiende (comprobado por el usuario)",
+      "efectoConfirmado": true,
+      "minUs": null,
+      "refUs": null,
+      "maxUs": null,
+      "exploracion": null,
+      "calibracion": {
+        "estado": "sin-calibrar",
+        "fecha": null,
+        "origen": null,
+        "notas": ""
+      },
+      "visual": {
+        "signo": -1,
+        "usPorGrado": 11.11111111111111,
+        "offsetGrados": 60,
+        "fuenteSigno": "Dossier: +µs extiende"
+      },
+      "historico": [
+        {
+          "minUs": 1300,
+          "maxUs": 1700,
+          "fuente": "CAMINATA_FLUIDA_PROBADA.ino: banda global de software (no límite mecánico)"
+        },
+        {
+          "minUs": 1200,
+          "maxUs": 1800,
+          "fuente": "CAMINATA_2_0_EXPERIMENTAL.ino: límites provisionales NO probados"
+        }
+      ]
+    },
+    {
+      "joint": "D2-cadera",
+      "canal": 5,
+      "canalEstado": "probado",
+      "transmisionPermitida": true,
+      "efectoPulsoMas": "Esperado: hacia adentro (espejo de canal 2) — sin confirmar",
+      "efectoConfirmado": false,
+      "minUs": null,
+      "refUs": null,
+      "maxUs": null,
+      "exploracion": null,
+      "calibracion": {
+        "estado": "sin-calibrar",
+        "fecha": null,
+        "origen": null,
+        "notas": ""
+      },
+      "visual": {
+        "signo": -1,
+        "usPorGrado": 11.11111111111111,
+        "offsetGrados": 0,
+        "fuenteSigno": "Hipótesis: espejo programado de la pata 1 (sin tabla individual)"
+      },
+      "historico": [
+        {
+          "minUs": 1300,
+          "maxUs": 1700,
+          "fuente": "CAMINATA_FLUIDA_PROBADA.ino: banda global de software (no límite mecánico)"
+        },
+        {
+          "minUs": 1400,
+          "maxUs": 1600,
+          "fuente": "CAMINATA_2_0_EXPERIMENTAL.ino: límites provisionales NO probados"
+        }
+      ]
+    },
+    {
+      "joint": "D2-superior",
+      "canal": 3,
+      "canalEstado": "probado",
+      "transmisionPermitida": true,
+      "efectoPulsoMas": "Esperado: hacia adelante (espejo de canal 0) — sin confirmar",
+      "efectoConfirmado": false,
+      "minUs": null,
+      "refUs": null,
+      "maxUs": null,
+      "exploracion": null,
+      "calibracion": {
+        "estado": "sin-calibrar",
+        "fecha": null,
+        "origen": null,
+        "notas": ""
+      },
+      "visual": {
+        "signo": 1,
+        "usPorGrado": 11.11111111111111,
+        "offsetGrados": -30,
+        "fuenteSigno": "Hipótesis: espejo programado de la pata 1 (sin tabla individual)"
+      },
+      "historico": [
+        {
+          "minUs": 1300,
+          "maxUs": 1700,
+          "fuente": "CAMINATA_FLUIDA_PROBADA.ino: banda global de software (no límite mecánico)"
+        },
+        {
+          "minUs": 1250,
+          "maxUs": 1750,
+          "fuente": "CAMINATA_2_0_EXPERIMENTAL.ino: límites provisionales NO probados"
+        }
+      ]
+    },
+    {
+      "joint": "D2-inferior",
+      "canal": 4,
+      "canalEstado": "probado",
+      "transmisionPermitida": true,
+      "efectoPulsoMas": "Esperado: flexiona (espejo de canal 1) — sin confirmar",
+      "efectoConfirmado": false,
+      "minUs": null,
+      "refUs": null,
+      "maxUs": null,
+      "exploracion": null,
+      "calibracion": {
+        "estado": "sin-calibrar",
+        "fecha": null,
+        "origen": null,
+        "notas": ""
+      },
+      "visual": {
+        "signo": 1,
+        "usPorGrado": 11.11111111111111,
+        "offsetGrados": 60,
+        "fuenteSigno": "Hipótesis: espejo programado de la pata 1 (sin tabla individual)"
+      },
+      "historico": [
+        {
+          "minUs": 1300,
+          "maxUs": 1700,
+          "fuente": "CAMINATA_FLUIDA_PROBADA.ino: banda global de software (no límite mecánico)"
+        },
+        {
+          "minUs": 1200,
+          "maxUs": 1800,
+          "fuente": "CAMINATA_2_0_EXPERIMENTAL.ino: límites provisionales NO probados"
+        }
+      ]
+    },
+    {
+      "joint": "P1-cadera",
+      "canal": null,
+      "canalEstado": "sin-asignar",
+      "transmisionPermitida": false,
+      "efectoPulsoMas": null,
+      "efectoConfirmado": false,
+      "minUs": null,
+      "refUs": null,
+      "maxUs": null,
+      "exploracion": null,
+      "calibracion": {
+        "estado": "sin-calibrar",
+        "fecha": null,
+        "origen": null,
+        "notas": ""
+      },
+      "visual": {
+        "signo": 1,
+        "usPorGrado": 11.11111111111111,
+        "offsetGrados": 0,
+        "fuenteSigno": "Supuesto visual copiado de D1 (sin dato físico)"
+      },
+      "historico": []
+    },
+    {
+      "joint": "P1-superior",
+      "canal": null,
+      "canalEstado": "sin-asignar",
+      "transmisionPermitida": false,
+      "efectoPulsoMas": null,
+      "efectoConfirmado": false,
+      "minUs": null,
+      "refUs": null,
+      "maxUs": null,
+      "exploracion": null,
+      "calibracion": {
+        "estado": "sin-calibrar",
+        "fecha": null,
+        "origen": null,
+        "notas": ""
+      },
+      "visual": {
+        "signo": -1,
+        "usPorGrado": 11.11111111111111,
+        "offsetGrados": -30,
+        "fuenteSigno": "Supuesto visual copiado de D1 (sin dato físico)"
+      },
+      "historico": []
+    },
+    {
+      "joint": "P1-inferior",
+      "canal": null,
+      "canalEstado": "sin-asignar",
+      "transmisionPermitida": false,
+      "efectoPulsoMas": null,
+      "efectoConfirmado": false,
+      "minUs": null,
+      "refUs": null,
+      "maxUs": null,
+      "exploracion": null,
+      "calibracion": {
+        "estado": "sin-calibrar",
+        "fecha": null,
+        "origen": null,
+        "notas": ""
+      },
+      "visual": {
+        "signo": -1,
+        "usPorGrado": 11.11111111111111,
+        "offsetGrados": 60,
+        "fuenteSigno": "Supuesto visual copiado de D1 (sin dato físico)"
+      },
+      "historico": []
+    },
+    {
+      "joint": "P2-cadera",
+      "canal": null,
+      "canalEstado": "sin-asignar",
+      "transmisionPermitida": false,
+      "efectoPulsoMas": null,
+      "efectoConfirmado": false,
+      "minUs": null,
+      "refUs": null,
+      "maxUs": null,
+      "exploracion": null,
+      "calibracion": {
+        "estado": "sin-calibrar",
+        "fecha": null,
+        "origen": null,
+        "notas": ""
+      },
+      "visual": {
+        "signo": -1,
+        "usPorGrado": 11.11111111111111,
+        "offsetGrados": 0,
+        "fuenteSigno": "Supuesto visual copiado de D2 (sin dato físico)"
+      },
+      "historico": []
+    },
+    {
+      "joint": "P2-superior",
+      "canal": null,
+      "canalEstado": "sin-asignar",
+      "transmisionPermitida": false,
+      "efectoPulsoMas": null,
+      "efectoConfirmado": false,
+      "minUs": null,
+      "refUs": null,
+      "maxUs": null,
+      "exploracion": null,
+      "calibracion": {
+        "estado": "sin-calibrar",
+        "fecha": null,
+        "origen": null,
+        "notas": ""
+      },
+      "visual": {
+        "signo": 1,
+        "usPorGrado": 11.11111111111111,
+        "offsetGrados": -30,
+        "fuenteSigno": "Supuesto visual copiado de D2 (sin dato físico)"
+      },
+      "historico": []
+    },
+    {
+      "joint": "P2-inferior",
+      "canal": null,
+      "canalEstado": "sin-asignar",
+      "transmisionPermitida": false,
+      "efectoPulsoMas": null,
+      "efectoConfirmado": false,
+      "minUs": null,
+      "refUs": null,
+      "maxUs": null,
+      "exploracion": null,
+      "calibracion": {
+        "estado": "sin-calibrar",
+        "fecha": null,
+        "origen": null,
+        "notas": ""
+      },
+      "visual": {
+        "signo": 1,
+        "usPorGrado": 11.11111111111111,
+        "offsetGrados": 60,
+        "fuenteSigno": "Supuesto visual copiado de D2 (sin dato físico)"
+      },
+      "historico": []
+    }
+  ]
+}

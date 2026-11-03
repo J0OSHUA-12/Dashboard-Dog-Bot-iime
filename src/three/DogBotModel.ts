@@ -462,8 +462,13 @@ export class DogBotModel {
         m.emissive.setHex(0x000000);
         m.emissiveIntensity = 0;
       }
-      m.transparent = mode === 'unknown';
-      m.opacity = mode === 'unknown' ? 0.45 : 1;
+      const tr = mode === 'unknown';
+      if (m.transparent !== tr) {
+        m.transparent = tr;
+        m.depthWrite = !tr;
+        m.needsUpdate = true;
+      }
+      m.opacity = tr ? 0.38 : 1;
     }
   }
 

@@ -125,11 +125,10 @@ export function PosesPanel() {
             const phys = mode === 'real' ? canRunPhysically(d.id) : { ok: true, motivo: '' };
             return (
               <div key={d.id} className="item">
-                <div className="item-head">
-                  {d.nombre}
-                  <span className="spacer" />
-                  <span className={`tag ${d.etiqueta === 'PROPUESTO' ? 'warn' : 'orange'}`}>{d.etiqueta}</span>
-                </div>
+                <div className="item-head">{d.nombre}</div>
+                <span className={`tag ${d.etiqueta === 'PROPUESTO' ? 'warn' : 'orange'}`} style={{ marginTop: 4 }}>
+                  {d.etiqueta}
+                </span>
                 <div className="hint" style={{ margin: '4px 0 6px' }}>
                   {d.descripcion}
                 </div>

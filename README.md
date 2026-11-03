@@ -1,0 +1,93 @@
+# Dog Bot Control
+
+Estación de control local para Windows del robot cuadrúpedo **Dog Bot**: modelo 3D
+articulado, controles de servos, calibración, editor de sketches con compilación y
+carga reales mediante Arduino CLI, telemetría honesta y registro de ensayos.
+
+> **Estado del robot (dossier, 3‑nov‑2026):** dos patas delanteras con seis servos
+> (canales 0–5) movidas en secuencias coordinadas **con el cuerpo suspendido en un
+> soporte**. No está demostrado que se sostenga ni camine sin apoyo.
+>
+> **Estado de esta aplicación (v0.1.0):** funciona en **modo simulación**. El servicio
+> local, el firmware nuevo y el modo ROBOT REAL están implementados y probados **solo en
+> software**. Faltan las pruebas físicas: USB/COM en Windows, carga en el UNO y movimiento real.
+> Ver [docs/PRUEBAS.md](docs/PRUEBAS.md).
+
+![Dog Bot Control en simulación, 1920×1080](docs/capturas/escritorio-1920.jpg)
+
+| Portátil 1366×768 | Robot real (puerto virtual de prueba, sin hardware) | Celular |
+|---|---|---|
+| ![](docs/capturas/portatil-1366.jpg) | ![](docs/capturas/robot-real-puerto-virtual-1366.jpg) | ![](docs/capturas/movil-3d.jpg) |
+
+> La captura «robot real» se tomó con un **puerto serie virtual** conectado al firmware
+> ejecutado en la PC (`firmware/pruebas_host`). No muestra hardware real.
+
+## Uso rápido en Windows
+
+1. Instala **Node.js 22 LTS o 24 LTS** desde <https://nodejs.org>.
+2. Para compilar y subir sketches, instala **Arduino IDE 2**, que ya incluye `arduino-cli`.
+   También sirve `arduino-cli` por separado.
+3. Descarga este repositorio (rama `ccr-c852bcef-htj9dj`) en una carpeta. La ruta puede
+   tener espacios.
+4. Doble clic en **`INSTALAR_DOGBOT.bat`**. Solo hace falta la primera vez y después de cada
+   actualización.
+5. Doble clic en **`INICIAR_DOGBOT.bat`**. Se abre `http://127.0.0.1:5178` en el navegador.
+
+La aplicación arranca en **SIMULACIÓN**. Abrirla no mueve el robot ni carga firmware.
+La guía detallada, con la primera conexión al robot, está en
+[docs/INSTALACION_WINDOWS.md](docs/INSTALACION_WINDOWS.md).
+
+## Qué incluye
+
+| Parte | Ubicación | Estado |
+|---|---|---|
+| Interfaz (React + TypeScript + Three.js + CodeMirror) | `src/` | Funcional en simulación; revisada a 1366×768, 1920×1080 y 390×844 |
+| Núcleo compartido: articulaciones, perfiles, protocolo, cliente, secuencias, telemetría | `shared/` | Con pruebas automáticas |
+| Servicio local Node.js: COM, Arduino CLI, sketches | `service/` | Probado con puerto virtual y Arduino CLI simulado; **pendiente en Windows** |
+| Firmware nuevo `DogBotDashboard.ino` (protocolo DOGBOT v1) | `firmware/DogBotDashboard/` | Compila para UNO con avr‑gcc (42 % flash, 41 % RAM estática); **pendiente de validación física** |
+| Arnés para ejecutar el firmware en la PC | `firmware/pruebas_host/` | Pruebas de software del firmware real |
+| Perfil inicial de calibración | `perfiles/perfil_inicial_v1.json` | 6 canales probados, **sin calibrar**; posteriores sin canal |
+| Documentación de entrega original (sin cambios) | `DOGBOT_CLAUDE_CODE/` | Contexto, prompt, 3 sketches históricos y fotos |
+| Mis sketches (editor) | `sketches/` | Copias y sketches nuevos |
+
+## Documentación
+
+- [Instalación y arranque en Windows](docs/INSTALACION_WINDOWS.md)
+- [Protocolo serie DOGBOT v1](docs/PROTOCOLO.md)
+- [Calibración paso a paso](docs/CALIBRACION.md)
+- [Estados, modos y acciones de parada](docs/ESTADOS_Y_SEGURIDAD.md)
+- [Telemetría y registros](docs/TELEMETRIA.md)
+- [Compilación y carga de firmware](docs/CARGA_FIRMWARE.md)
+- [Pruebas hechas y pruebas físicas pendientes](docs/PRUEBAS.md)
+- [Decisiones, estado y próximos pasos (4 patas, Raspberry Pi 4)](docs/DECISIONES_Y_ESTADO.md)
+
+## Arquitectura (resumen)
+
+```text
+Navegador (127.0.0.1:5178) ── HTTP + WebSocket con token ──> Servicio local Node.js
+  React · Three.js · CodeMirror                              ├─ serialport (único dueño del COM)
+  estado (zustand) · cliente de protocolo                     ├─ arduino-cli (argumentos estructurados, sin shell)
+                                                              └─ sketches/ (rutas validadas)
+Servicio ── USB/COM 115200 ──> Arduino UNO (DogBotDashboard.ino) ── I²C ──> PCA9685 0x40 ── PWM 50 Hz ──> servos
+```
+
+Una sola solución: interfaz web local servida por un servicio Node.js en Windows. La
+interfaz también funciona sin el servicio, en simulación: se puede explorar el modelo, los
+controles, el editor y las gráficas sintéticas rotuladas. Ver
+[DECISIONES_Y_ESTADO.md](docs/DECISIONES_Y_ESTADO.md).
+
+## Desarrollo
+
+```bash
+npm ci            # dependencias exactas (package-lock.json)
+npm run dev       # servicio (5178) + Vite con recarga (5173)
+npm test          # 66 pruebas (vitest)
+npm run typecheck
+npm run build     # dist/web + dist/service
+npm start         # sirve la app compilada en http://127.0.0.1:5178
+```
+
+Versiones fijadas: Node ≥ 22.12, React 19.2.9, Three.js 0.186.1, Vite 7.3.6,
+CodeMirror 6 (view 6.43.14, language 6.12.4), zustand 5.0.15, serialport 13.0.0,
+ws 8.22.0, esbuild 0.27.2, TypeScript 6.0.3, Vitest 4.1.11. Las fuentes (Inter,
+JetBrains Mono) se incluyen localmente. La aplicación no usa servicios en la nube.

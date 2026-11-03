@@ -409,6 +409,31 @@ export class ProtocolClient {
       }
       throw e;
     }
+    if (this.state === 'desarmado') await this.reconcileAfterIdentify();
+  }
+
+  /**
+   * Si la placa NO se reinició al abrir el puerto, el firmware puede seguir
+   * armado y con canales habilitados. No se reenvía nada antiguo: se detienen
+   * trayectorias (sin cortar PWM, para no soltar un robot que sostiene peso) y
+   * se muestra el estado real informado por el firmware.
+   */
+  private async reconcileAfterIdentify() {
+    try {
+      const st = await this.request('STATUS');
+      const armed = st.fields.arm === '1';
+      const en = parseInt(st.fields.en ?? '0', 16) || 0;
+      if (!armed && en === 0) return;
+      await this.request('STOP', [], { priority: true });
+      this.enabled.clear();
+      for (let c = 0; c < 16; c++) if (en & (1 << c)) this.enabled.add(c);
+      this.cb.onEnabled?.(this.enabled);
+      await this.request('PULSES').catch(() => undefined);
+      this.log('aviso', `El firmware seguía ${armed ? 'ARMADO' : 'desarmado'} con ${this.enabled.size} canal(es) con PWM (la placa no se reinició). Se detuvieron trayectorias; no se reenviaron consignas antiguas. Revisa y desarma si corresponde.`);
+      if (armed) this.setState(st.fields.ll === '1' ? 'enlace-perdido' : 'armado', 'Firmware ya armado al conectar');
+    } catch {
+      /* el estado queda como identificado */
+    }
   }
 
   private requireCompatible() {

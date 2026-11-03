@@ -182,7 +182,8 @@ describe('detección de herramientas', () => {
 class FakePort implements PortLike {
   isOpen = false;
   written: string[] = [];
-  handlers: Record<string, ((...a: unknown[]) => void)[]> = {};
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  handlers: Record<string, ((...a: any[]) => void)[]> = {};
   failOpen: string | null = null;
   pendingDrains: (() => void)[] = [];
   open(cb: (err: Error | null) => void) {
@@ -201,7 +202,8 @@ class FakePort implements PortLike {
   drain(cb: (err: Error | null) => void) {
     this.pendingDrains.push(() => cb(null));
   }
-  on(ev: string, fn: (...a: unknown[]) => void) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  on(ev: string, fn: (...a: any[]) => void) {
     (this.handlers[ev] ??= []).push(fn);
     return this;
   }

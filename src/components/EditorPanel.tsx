@@ -21,6 +21,9 @@ import { client } from '../services/robotLink';
 import { confirmDialog, promptDialog, toast } from './Dialog';
 import { IAlert, ICheck, IChevron, IDownload, IError, IFile, IFolder, IHammer, IPlus, IRefresh, ISave, IUpload } from './icons';
 
+/** Compilaciones terminadas recibidas por WebSocket (pueden llegar antes que la respuesta HTTP). */
+const finishedBuilds = new Map<string, BuildRecord>();
+
 const FICHAS: Record<string, string> = {
   DogBotDashboard: 'Firmware NUEVO del dashboard (protocolo DOGBOT v1, 115200 baudios). Compilado sólo en software; PENDIENTE DE VALIDACIÓN FÍSICA. Arranca sin mover nada.',
   CAMINATA_FLUIDA_PROBADA:
@@ -211,7 +214,8 @@ export function EditorPanel({ onCollapse }: { onCollapse?: () => void }) {
           }
         }
         if (m.build) {
-          const docId = jobDoc.current.get(m.job.id);
+          if (m.build.state !== 'en-curso') finishedBuilds.set(m.build.id, m.build);
+          const docId = jobDoc.current.get(m.job.id) ?? Object.entries(ed.builds).find(([, b]) => b.build.id === m.build!.id)?.[0];
           if (docId) ed.setBuild(docId, { build: m.build, jobId: m.job.id });
         }
       } else if (m.t === 'job-log') {
@@ -347,8 +351,9 @@ export function EditorPanel({ onCollapse }: { onCollapse?: () => void }) {
     try {
       const r = await service.api<{ job: JobInfo; build: BuildRecord }>('/api/compile', { method: 'POST', body: { sketchName: active.name, fqbn, content: active.content } });
       jobDoc.current.set(r.job.id, active.id);
-      useEditor.getState().setBuild(active.id, { build: r.build, jobId: r.job.id });
-      useEditor.getState().setJob(r.job);
+      const done = finishedBuilds.get(r.build.id);
+      useEditor.getState().setBuild(active.id, { build: done ?? r.build, jobId: r.job.id });
+      if (!done) useEditor.getState().setJob(r.job);
     } catch (e) {
       toast((e as Error).message, 'error');
       useEditor.getState().log('stderr', (e as Error).message + '\n');
@@ -487,7 +492,7 @@ export function EditorPanel({ onCollapse }: { onCollapse?: () => void }) {
             )}
           </div>
           <button className="btn sm" disabled={!active || (active.source === 'mis-sketches' && !serviceUp)} onClick={() => active && saveDoc(active)} title={active?.source !== 'mis-sketches' ? 'Guarda una copia en Mis sketches' : 'Guardar'}>
-            <ISave size={13} /> {active?.source === 'mis-sketches' ? 'Guardar' : 'Guardar copia'}
+            <ISave size={13} /> Guardar
           </button>
           <button className="btn sm icon" disabled={!active} onClick={() => active && downloadText(`${active.name}.ino`, active.content)} title="Descargar .ino" aria-label="Descargar">
             <IDownload size={13} />

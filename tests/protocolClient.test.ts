@@ -42,7 +42,7 @@ describe('ProtocolClient (firmware simulado)', () => {
     await flushAll(120);
     expect(client.state).toBe('desarmado');
     expect(client.firmware?.fw).toBe('0.1.0');
-    expect(fw.received.map((r) => r.line.split(' ')[1])).toEqual(['HELLO']);
+    expect(fw.received.map((r) => r.line.split(' ')[1])).toEqual(['HELLO', 'STATUS']);
   });
 
   it('firmware sin protocolo => desconocido, controles bloqueados', async () => {
@@ -124,12 +124,32 @@ describe('ProtocolClient (firmware simulado)', () => {
     const { fw, client } = setup();
     await armWithChannel(fw, client);
     client.setTarget(1, 1620);
+    await client.pwmOff('ALL').catch(() => undefined);
+    await client.disarm();
     client.detach('Puerto cerrado');
     fw.received.length = 0;
     client.attach();
     await flushAll(120);
     await flushAll(300);
-    expect(fw.received.map((r) => r.line.split(' ')[1])).toEqual(['HELLO']);
+    expect(fw.received.map((r) => r.line.split(' ')[1])).toEqual(['HELLO', 'STATUS']);
+    expect(client.state).toBe('desarmado');
+  });
+
+  it('si la placa no se reinició y sigue armada: detiene trayectorias, no corta PWM ni reenvía consignas', async () => {
+    const { fw, client } = setup();
+    await armWithChannel(fw, client);
+    client.setTarget(1, 1620);
+    client.detach('Puerto cerrado');
+    fw.received.length = 0;
+    client.attach();
+    await flushAll(120);
+    await flushAll(300);
+    const cmds = fw.received.map((r) => r.line.split(' ')[1]);
+    expect(cmds).toEqual(['HELLO', 'STATUS', 'STOP', 'PULSES']);
+    expect(fw.received.find((r) => r.line.endsWith('STOP'))?.priority).toBe(true);
+    expect(client.state).toBe('armado');
+    expect([...client.enabled]).toEqual([1]);
+    expect(client.pendingTargets.size).toBe(0);
   });
 
   it('líneas corruptas no rompen el cliente', async () => {

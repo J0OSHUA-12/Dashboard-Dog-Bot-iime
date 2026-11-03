@@ -49,6 +49,8 @@ export class DogBotScene {
   private disposed = false;
   private params: ModelParams;
   private target = new THREE.Vector3(0, 1.45, 0);
+  private userMoved = false;
+  private lastView: ViewName = 'iso';
 
   constructor(
     private host: HTMLElement,
@@ -77,6 +79,9 @@ export class DogBotScene {
     this.controls.minDistance = 2.5;
     this.controls.maxDistance = 22;
     this.controls.maxPolarAngle = Math.PI * 0.495;
+    this.controls.addEventListener('start', () => {
+      this.userMoved = true;
+    });
 
     // Luces
     this.scene.add(new THREE.HemisphereLight(0xdfe6ff, 0x1a1410, 0.95));
@@ -190,7 +195,10 @@ export class DogBotScene {
   }
 
   setView(v: ViewName, animate = true) {
-    const d = 8.6;
+    this.lastView = v;
+    if (animate) this.userMoved = false;
+    const aspect = this.camera.aspect || 1.6;
+    const d = 8.6 * Math.max(1, Math.pow(1.25 / Math.min(1.25, aspect), 0.6));
     const t = this.target;
     const pos =
       v === 'iso'
@@ -228,6 +236,7 @@ export class DogBotScene {
     this.labels.setSize(w, h);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
+    if (!this.userMoved) this.setView(this.lastView, false);
   }
 
   private pick(ev: PointerEvent): JointId | null {

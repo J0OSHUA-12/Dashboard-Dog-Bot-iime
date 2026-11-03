@@ -265,14 +265,14 @@ export function CalibrationPanel() {
           ))}
         </div>
         <div className="grid3" style={{ marginTop: 8 }}>
-          <button className="btn sm" onClick={() => capture('minUs')} disabled={cur === null}>
-            Marcar mínimo
+          <button className="btn sm" style={{ padding: '0 4px' }} onClick={() => capture('minUs')} disabled={cur === null}>
+            Marcar mín.
           </button>
-          <button className="btn sm" onClick={() => capture('refUs')} disabled={cur === null}>
-            Marcar referencia
+          <button className="btn sm" style={{ padding: '0 4px' }} onClick={() => capture('refUs')} disabled={cur === null}>
+            Marcar ref.
           </button>
-          <button className="btn sm" onClick={() => capture('maxUs')} disabled={cur === null}>
-            Marcar máximo
+          <button className="btn sm" style={{ padding: '0 4px' }} onClick={() => capture('maxUs')} disabled={cur === null}>
+            Marcar máx.
           </button>
         </div>
         <div className="grid3" style={{ marginTop: 8 }}>

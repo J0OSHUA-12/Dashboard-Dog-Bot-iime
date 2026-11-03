@@ -28,12 +28,23 @@ export function TopBar() {
         </div>
       </div>
 
+      {__PREVIEW_BUILD__ && (
+        <span className="tag sim" title="Esta vista previa no tiene servicio local: sin COM, sin Arduino CLI. Instala la app en Windows para usar el robot.">
+          VISTA PREVIA WEB
+        </span>
+      )}
       <div className="tb-group">
         <div className="mode-switch" role="group" aria-label="Modo">
           <button className={`sim ${!real ? 'on' : ''}`} onClick={() => switchMode('sim')} aria-pressed={!real}>
             SIMULACIÓN
           </button>
-          <button className={`real ${real ? 'on' : ''}`} onClick={() => switchMode('real')} aria-pressed={real}>
+          <button
+            className={`real ${real ? 'on' : ''}`}
+            onClick={() => switchMode('real')}
+            aria-pressed={real}
+            disabled={__PREVIEW_BUILD__}
+            title={__PREVIEW_BUILD__ ? 'Vista previa web: el modo ROBOT REAL requiere el servicio local en Windows' : ''}
+          >
             ROBOT REAL
           </button>
         </div>
@@ -41,14 +52,14 @@ export function TopBar() {
 
       <div className="tb-group" title={link.serviceAvailable ? `Servicio local ${link.serviceVersion ?? ''}` : 'Servicio local no disponible'}>
         <span className={`dot ${link.serviceAvailable ? 'ok' : 'err'}`} />
-        <span className="tb-label tb-hide-narrow">Servicio</span>
+        <span className="tb-label tb-hide-narrow tb-wide">Servicio</span>
         <span className="tb-hide-narrow tb-wide" style={{ color: link.serviceAvailable ? 'var(--text2)' : 'var(--muted)', fontSize: 12 }}>
           {link.serviceAvailable ? (link.controller ? 'local · control' : 'local · sólo vista') : 'no disponible'}
         </span>
       </div>
 
       <div className="tb-group">
-        <span className="tb-label">COM</span>
+        <span className="tb-label tb-wide">COM</span>
         <select
           className="field mono"
           style={{ width: 112 }}
@@ -88,19 +99,20 @@ export function TopBar() {
             <IPlug size={14} /> Conectar
           </button>
         ) : (
-          <button className="btn sm" onClick={disconnect}>
-            <IPlug size={14} /> Desconectar
+          <button className="btn sm" onClick={disconnect} title="Desconectar">
+            <IPlug size={14} /> <span className="tb-wide">Desconectar</span>
+            <span className="tb-narrow-only">Desc.</span>
           </button>
         )}
       </div>
 
       <div className="tb-group" style={{ minWidth: 0 }}>
-        <IChip size={15} color="var(--text2)" />
+        <IChip size={15} color="var(--text2)" className="tb-wide" />
         <div style={{ minWidth: 0 }}>
           <div className="mono" style={{ fontSize: 11.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 150 }}>
             {real ? (link.firmware ? `UNO · ${link.firmware.dev} fw ${link.firmware.fw} · p${link.firmware.proto}` : open ? 'Firmware sin identificar' : 'Sin conexión') : 'Arduino UNO · simulado'}
           </div>
-          <div style={{ fontSize: 10.5, color: 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 150 }}>{real ? (link.firmware ? `boot ${link.firmware.boot} · RAM libre ${link.firmware.freeRam ?? '—'} B` : 'PCA9685 0x40 · 50 Hz') : 'sin hardware'}</div>
+          <div className="tb-wide" style={{ fontSize: 10.5, color: 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 150 }}>{real ? (link.firmware ? `boot ${link.firmware.boot} · RAM libre ${link.firmware.freeRam ?? '—'} B` : 'PCA9685 0x40 · 50 Hz') : 'sin hardware'}</div>
         </div>
         {real && (
           <span className={`tag ${stateTone}`} title={LINK_STATE_LABEL[st]}>

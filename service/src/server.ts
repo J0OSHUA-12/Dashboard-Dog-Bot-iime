@@ -83,6 +83,7 @@ export function createServer(d: ServerDeps) {
   const log = d.log ?? (() => undefined);
   const clients = new Map<string, WebSocket>();
   let controller: string | null = null;
+  let idleClose: ReturnType<typeof setTimeout> | null = null;
 
   const broadcast = (m: ServerMsg) => {
     const s = JSON.stringify(m);
@@ -205,6 +206,10 @@ export function createServer(d: ServerDeps) {
   wss.on('connection', (ws: WebSocket) => {
     const id = crypto.randomUUID();
     clients.set(id, ws);
+    if (idleClose) {
+      clearTimeout(idleClose);
+      idleClose = null;
+    }
     if (!controller) controller = id;
     const send = (m: ServerMsg) => ws.readyState === WebSocket.OPEN && ws.send(JSON.stringify(m));
     send({ t: 'hello', service: SERVICE_VERSION, controller: controller === id, clientId: id });
@@ -253,6 +258,16 @@ export function createServer(d: ServerDeps) {
         if (controller) clients.get(controller)?.send(JSON.stringify({ t: 'control', controller: true } satisfies ServerMsg));
       }
       log(`Cliente desconectado (${clients.size})`);
+      if (clients.size === 0 && d.serial.status.state === 'abierto') {
+        // Sin interfaz abierta: se libera el COM (el firmware aplicará su política de pérdida de enlace).
+        idleClose = setTimeout(() => {
+          idleClose = null;
+          if (clients.size === 0) {
+            log('Sin clientes: se cierra el puerto serie.');
+            void d.serial.close();
+          }
+        }, 4000);
+      }
     });
   });
 

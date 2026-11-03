@@ -317,6 +317,7 @@ label.chk input {
   letter-spacing: 0.06em;
 }
 .mode-switch {
+  flex: none;
   display: inline-flex;
   border: 1px solid var(--border);
   border-radius: 7px;
@@ -1369,9 +1370,18 @@ table.tbl td.num {
 .mobile-nav {
   display: none;
 }
+.tb-narrow-only {
+  display: none;
+}
 @media (max-width: 1540px) {
   .tb-wide {
     display: none !important;
+  }
+  .tb-narrow-only {
+    display: inline;
+  }
+  .tb-group {
+    padding: 0 7px;
   }
   .brand small {
     display: none;

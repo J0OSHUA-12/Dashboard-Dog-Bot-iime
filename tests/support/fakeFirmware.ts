@@ -73,6 +73,11 @@ export class FakeFirmware {
         for (let i = 3; i < t.length; i += 2) this.cur.set(n(i), n(i + 1));
         return this.reply(`OK ${id} MOVE n=${(t.length - 3) / 2}`);
       }
+      case 'STATUS': {
+        let en = 0;
+        for (const c of this.enabled) en |= 1 << c;
+        return this.reply(`OK ${id} STATUS arm=${this.armed ? 1 : 0} mode=RUN lim=0000 en=${en.toString(16).padStart(4, '0').toUpperCase()} mv=0000 ll=0 llp=HOLD llms=1500 slew=20 rpt=0 up=1 fr=1000`);
+      }
       case 'STOP':
         return this.reply(`OK ${id} STOP`);
       case 'PULSES':
