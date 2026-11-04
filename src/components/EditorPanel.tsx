@@ -19,7 +19,8 @@ import { downloadText, pickFile } from '../state/persist';
 import { service } from '../services/serviceClient';
 import { client } from '../services/robotLink';
 import { confirmDialog, promptDialog, toast } from './Dialog';
-import { IAlert, ICheck, IChevron, IDownload, IError, IFile, IFolder, IHammer, IPlus, IRefresh, ISave, IUpload } from './icons';
+import { IAlert, ICheck, IChevron, IDownload, IError, IFile, IFolder, IHammer, IInfo, IPlus, IRedo, IRefresh, ISave, ISearch, IUndo, IUpload, IX } from './icons';
+import { Disclosure } from './Disclosure';
 
 /** Compilaciones terminadas recibidas por WebSocket (pueden llegar antes que la respuesta HTTP). */
 const finishedBuilds = new Map<string, BuildRecord>();
@@ -53,7 +54,7 @@ const hl = HighlightStyle.define([
   { tag: [t.processingInstruction, t.meta], color: '#ef6b64' },
   { tag: [t.string, t.special(t.string)], color: '#9fd59a' },
   { tag: [t.number, t.bool, t.null], color: '#c5a3ff' },
-  { tag: [t.comment, t.lineComment, t.blockComment], color: '#6c7385', fontStyle: 'italic' },
+  { tag: [t.comment, t.lineComment, t.blockComment], color: '#8b92a5', fontStyle: 'italic' },
   { tag: [t.function(t.variableName), t.function(t.propertyName)], color: '#7cc4ff' },
   { tag: [t.macroName], color: '#ef6b64' },
   { tag: [t.operator, t.punctuation], color: '#b9bec9' },
@@ -64,7 +65,7 @@ const theme = EditorView.theme(
   {
     '&': { height: '100%', backgroundColor: '#14161b', color: '#e8eaee', fontSize: '12.5px' },
     '.cm-content': { fontFamily: 'var(--mono)', caretColor: '#ffb15c' },
-    '.cm-gutters': { backgroundColor: '#14161b', color: '#545b6a', border: 'none', borderRight: '1px solid #262933' },
+    '.cm-gutters': { backgroundColor: '#14161b', color: '#7d8496', border: 'none', borderRight: '1px solid #22252c' },
     '.cm-activeLine': { backgroundColor: 'rgba(255,122,26,0.06)' },
     '.cm-activeLineGutter': { backgroundColor: 'rgba(255,122,26,0.10)', color: '#ffb15c' },
     '.cm-selectionBackground, &.cm-focused .cm-selectionBackground, ::selection': { backgroundColor: 'rgba(255,122,26,0.28) !important' },
@@ -443,7 +444,7 @@ export function EditorPanel({ onCollapse }: { onCollapse?: () => void }) {
               <span className="n">
                 {d.name}.ino{!d.readOnly && d.content !== d.saved ? ' •' : ''}
               </span>
-              {d.readOnly && <span style={{ color: 'var(--muted)', fontSize: 10 }}>RO</span>}
+              {d.readOnly && <span className="ro" title="Sólo lectura">RO</span>}
               <button
                 className="x"
                 onClick={(e) => {
@@ -452,7 +453,7 @@ export function EditorPanel({ onCollapse }: { onCollapse?: () => void }) {
                 }}
                 aria-label={`Cerrar ${d.name}`}
               >
-                ×
+                <IX size={12} />
               </button>
             </div>
           ))}
@@ -466,10 +467,7 @@ export function EditorPanel({ onCollapse }: { onCollapse?: () => void }) {
               <IFolder size={13} /> Abrir
             </button>
             {menu && (
-              <div
-                style={{ position: 'absolute', top: 32, left: 0, zIndex: 20, width: 300, background: 'var(--raised)', border: '1px solid var(--border)', borderRadius: 8, padding: 6, boxShadow: '0 10px 30px rgba(0,0,0,.5)' }}
-                onMouseLeave={() => setMenu(false)}
-              >
+              <div className="menu" onMouseLeave={() => setMenu(false)}>
                 {(serviceUp ? entries : BUNDLED.map((b) => ({ source: b.source, name: b.name, readOnly: true, displayPath: '(copia incluida)', ficha: FICHAS[b.name] }))).map((e) => (
                   <button
                     key={e.source + e.name}
@@ -484,7 +482,7 @@ export function EditorPanel({ onCollapse }: { onCollapse?: () => void }) {
                     <span className="hint">{e.source === 'mis-sketches' ? 'mío' : e.source === 'firmware' ? 'firmware' : 'original'}</span>
                   </button>
                 ))}
-                <div style={{ borderTop: '1px solid var(--border)', margin: '4px 0' }} />
+                <div className="menu-sep" />
                 <button className="btn ghost sm" style={{ width: '100%', justifyContent: 'flex-start' }} onClick={openLocal}>
                   <IFolder size={12} /> Archivo .ino del equipo…
                 </button>
@@ -497,18 +495,18 @@ export function EditorPanel({ onCollapse }: { onCollapse?: () => void }) {
           <button className="btn sm icon" disabled={!active} onClick={() => active && downloadText(`${active.name}.ino`, active.content)} title="Descargar .ino" aria-label="Descargar">
             <IDownload size={13} />
           </button>
-          <span style={{ width: 1, height: 20, background: 'var(--border)' }} />
+          <span className="tb-sep" />
           <button className="btn sm icon ghost" onClick={() => view.current && undo(view.current)} title="Deshacer (Ctrl+Z)" aria-label="Deshacer">
-            ↶
+            <IUndo size={14} />
           </button>
           <button className="btn sm icon ghost" onClick={() => view.current && redo(view.current)} title="Rehacer (Ctrl+Y)" aria-label="Rehacer">
-            ↷
+            <IRedo size={14} />
           </button>
           <button className="btn sm icon ghost" onClick={() => view.current && openSearchPanel(view.current)} title="Buscar (Ctrl+F)" aria-label="Buscar">
-            ⌕
+            <ISearch size={14} />
           </button>
         </div>
-        <div className="toolbar" style={{ paddingTop: 4 }}>
+        <div className="toolbar build-tools">
           <select className="field" style={{ width: 128 }} value={fqbn} onChange={(e) => useEditor.getState().setFqbn(e.target.value)} aria-label="Placa">
             {BOARDS.map((b) => (
               <option key={b.fqbn} value={b.fqbn}>
@@ -548,18 +546,22 @@ export function EditorPanel({ onCollapse }: { onCollapse?: () => void }) {
             </span>
           )}
         </div>
-        <div>
+        <div className="notes">
           {active?.ficha && (
-            <div className={`note ficha ${active.source === 'originales' ? 'warn' : ''}`}>
-              <IAlert size={13} /> <span>{active.ficha}</span>
-            </div>
+            <Disclosure
+              className="ficha"
+              tone={active.source === 'originales' ? 'warn' : undefined}
+              icon={<IAlert size={13} />}
+              summary={active.source === 'originales' ? 'Advertencias de este sketch histórico' : 'Ficha del sketch'}
+              meta={sourceLabel(active.source)}
+            >
+              {active.ficha}
+            </Disclosure>
           )}
           {!serviceUp && (
-            <div className="note ficha">
-              <span>
-                Servicio local no disponible: puedes editar, abrir y descargar sketches. <b>Compilar y Subir</b> requieren ejecutar <span className="mono">INICIAR_DOGBOT.bat</span> en la computadora Windows (Arduino CLI).
-              </span>
-            </div>
+            <Disclosure className="ficha" icon={<IInfo size={13} />} summary="Servicio local no disponible" meta="Compilar y Subir desactivados">
+              Puedes editar, abrir y descargar sketches. <b>Compilar y Subir</b> requieren ejecutar <span className="mono">INICIAR_DOGBOT.bat</span> en la computadora Windows (Arduino CLI).
+            </Disclosure>
           )}
         </div>
         <div className="cm-host" ref={host} />
@@ -590,8 +592,8 @@ export function EditorPanel({ onCollapse }: { onCollapse?: () => void }) {
               {tools ? (
                 <div className="list">
                   {[tools.cli, tools.core, tools.lib].map((c, i) => (
-                    <div key={i} style={{ color: c.ok ? 'var(--ok)' : 'var(--warn)' }}>
-                      {c.ok ? '✔' : '✖'} {c.detail}
+                    <div key={i} className="tool-line" style={{ color: c.ok ? 'var(--ok)' : 'var(--warn)' }}>
+                      {c.ok ? <ICheck size={12} /> : <IError size={12} />} {c.detail}
                     </div>
                   ))}
                   <div className="hint mono">{tools.cliPath}</div>

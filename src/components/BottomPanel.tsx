@@ -390,7 +390,7 @@ function Tests() {
             <IDownload size={12} /> CSV
           </button>
         </div>
-        <div className="hint" style={{ marginTop: 6 }}>Un ensayo simulado nunca cuenta como avance físico. Registra montaje y condiciones de cada prueba real.</div>
+        <div className="hint" style={{ marginTop: 10 }}>Un ensayo simulado nunca cuenta como avance físico. Registra montaje y condiciones de cada prueba real.</div>
       </div>
       <div>
         <table className="tbl">
@@ -565,7 +565,7 @@ export function BottomPanel({ onCollapse }: { onCollapse?: () => void }) {
           <button key={k} className={tab === k ? 'on' : ''} onClick={() => setUi({ bottomTab: k })}>
             {l}
             {k === 'eventos' && errors > 0 && (
-              <span className="tag err" style={{ marginLeft: 6, height: 17 }}>
+              <span className="tag err count">
                 {errors}
               </span>
             )}

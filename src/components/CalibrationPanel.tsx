@@ -6,6 +6,7 @@ import { requestReal } from '../services/robotLink';
 import { confirmDialog, toast } from './Dialog';
 import { ChannelBadge } from './JointControls';
 import { IAlert, ICheck } from './icons';
+import { Disclosure, HelpTip } from './Disclosure';
 
 function NumField({ label, value, onChange, disabled }: { label: string; value: number | null; onChange: (v: number | null) => void; disabled?: boolean }) {
   const [txt, setTxt] = useState<string | null>(null);
@@ -122,27 +123,27 @@ export function CalibrationPanel() {
     <div>
       <div className="section">
         <div className="row" style={{ justifyContent: 'space-between' }}>
-          <label className="chk" title={armed ? 'Desarma para cambiar el modo del firmware' : ''}>
-            <input type="checkbox" checked={calActive} disabled={armed} onChange={(e) => setCal(e.target.checked)} />
-            <b style={{ color: 'var(--text)' }}>Sesión de calibración</b>
-          </label>
+          <span className="row" style={{ gap: 4 }}>
+            <label className="chk" title={armed ? 'Desarma para cambiar el modo del firmware' : ''}>
+              <input type="checkbox" checked={calActive} disabled={armed} onChange={(e) => setCal(e.target.checked)} />
+              <b style={{ color: 'var(--text)' }}>Sesión de calibración</b>
+            </label>
+            <HelpTip label="Sesión de calibración">
+              Modo separado de la ejecución coordinada: el firmware acepta un canal por orden y pasos ≤ 50 µs, dentro de la banda de exploración.
+            </HelpTip>
+          </span>
           <span className={`tag ${calActive ? 'warn' : 'muted'}`}>{calActive ? 'armará en modo CAL' : 'armará en modo EJECUCIÓN'}</span>
         </div>
-        <div className="hint" style={{ marginTop: 6 }}>
-          Modo separado de la ejecución coordinada: el firmware acepta un canal por orden y pasos ≤ 50 µs, dentro de la banda de exploración.
-        </div>
-      </div>
-
-      <div className="section">
-        <h4>Procedimiento</h4>
-        <ol className="hint" style={{ margin: 0, paddingLeft: 18 }}>
+        <Disclosure summary="Procedimiento" meta="6 pasos" className="section-disclosure">
+          <ol className="steps-list">
           <li>Robot sostenido en soporte; para explorar extremos, desacopla el brazo del servo.</li>
           <li>Define una banda de exploración conservadora (p. ej. la histórica 1300–1700 µs).</li>
           <li>Activa la sesión, arma y habilita sólo este canal en la referencia.</li>
           <li>Avanza en pasos pequeños observando la pata. Nunca hasta topar.</li>
           <li>Marca mínimo, referencia y máximo seguros y anota el efecto de +µs.</li>
           <li>Marca calibrado y exporta el perfil (pestaña Perfil).</li>
-        </ol>
+          </ol>
+        </Disclosure>
       </div>
 
       <div className="section">
@@ -231,40 +232,35 @@ export function CalibrationPanel() {
           {elig.ok ? `Elegible para calibración: ${elig.motivo}.` : `No elegible: ${elig.motivo}`} {enabled && 'Desactiva el canal para cambiar límites.'}
         </div>
         {cfg.historico.length > 0 && (
-          <div className="hint" style={{ marginTop: 6 }}>
-            Referencias históricas (no autorizan movimiento):
-            {cfg.historico.map((hh, i) => (
-              <div key={i}>
-                · <span className="mono">{hh.minUs}–{hh.maxUs} µs</span> — {hh.fuente}
-              </div>
-            ))}
-          </div>
+          <Disclosure summary="Referencias históricas" meta={String(cfg.historico.length)} className="section-disclosure">
+            <div className="hint" style={{ marginBottom: 4 }}>No autorizan movimiento.</div>
+            <ul className="plain-list">
+              {cfg.historico.map((hh, i) => (
+                <li key={i}>
+                  <span className="mono">{hh.minUs}–{hh.maxUs} µs</span> — {hh.fuente}
+                </li>
+              ))}
+            </ul>
+          </Disclosure>
         )}
       </div>
 
       <div className="section">
         <h4>Exploración por pasos</h4>
-        <div className="row" style={{ justifyContent: 'space-between' }}>
+        <div className="readout">
           <span className="hint">{real ? 'Consigna solicitada/confirmada' : 'Consigna simulada'}</span>
-          <span className="mono" style={{ fontSize: 18, fontWeight: 650, color: 'var(--sel)' }}>
+          <span className="readout-value mono">
             {cur ?? '—'} <span className="unit">µs</span>
           </span>
         </div>
-        <div className="steps" style={{ marginTop: 6 }}>
-          {[-50, -25, -10, -5, -1].map((d) => (
-            <button key={d} className="btn sm" style={{ flex: 1 }} onClick={() => step(d)} disabled={cur === null}>
-              {d}
+        <div className="seg step-bar" role="group" aria-label="Exploración por pasos (µs)">
+          {[-50, -25, -10, -5, -1, 1, 5, 10, 25, 50].map((d) => (
+            <button key={d} className={d === 1 ? 'mid' : ''} onClick={() => step(d)} disabled={cur === null} aria-label={`${d < 0 ? 'Restar' : 'Sumar'} ${Math.abs(d)} µs`}>
+              {d < 0 ? `−${-d}` : `+${d}`}
             </button>
           ))}
         </div>
-        <div className="steps" style={{ marginTop: 4 }}>
-          {[1, 5, 10, 25, 50].map((d) => (
-            <button key={d} className="btn sm" style={{ flex: 1 }} onClick={() => step(d)} disabled={cur === null}>
-              +{d}
-            </button>
-          ))}
-        </div>
-        <div className="grid3" style={{ marginTop: 8 }}>
+        <div className="grid3" style={{ marginTop: 12 }}>
           <button className="btn sm" style={{ padding: '0 4px' }} onClick={() => capture('minUs')} disabled={cur === null}>
             Marcar mín.
           </button>

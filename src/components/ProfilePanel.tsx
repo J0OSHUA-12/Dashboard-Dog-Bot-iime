@@ -4,7 +4,8 @@ import { useApp } from '../state/store';
 import { downloadText, pickFile, stamp } from '../state/persist';
 import { MODEL_PARAM_LABEL, MODEL_PARAM_RANGE, ModelParams, DEFAULT_MODEL_PARAMS } from '../three/modelParams';
 import { confirmDialog, toast } from './Dialog';
-import { IAlert, ICheck, IDownload, IFolder } from './icons';
+import { IAlert, ICheck, IDownload, IError, IFolder } from './icons';
+import { Disclosure, HelpTip } from './Disclosure';
 
 export function ProfilePanel() {
   const profile = useApp((s) => s.profile);
@@ -80,15 +81,18 @@ export function ProfilePanel() {
             </div>
           )}
           {issues.slice(0, 8).map((i, k) => (
-            <div key={k} className="hint" style={{ color: i.level === 'error' ? 'var(--err)' : 'var(--warn)', marginTop: 3 }}>
-              {i.level === 'error' ? '✖' : '⚠'} {i.mensaje}
+            <div key={k} className={`hint ${i.level === 'error' ? 'err-text' : 'warn-text'}`} style={{ marginTop: 4 }}>
+              {i.level === 'error' ? <IError size={12} /> : <IAlert size={12} />} {i.mensaje}
             </div>
           ))}
         </div>
       </div>
 
       <div className="section">
-        <h4>Canales (12 articulaciones)</h4>
+        <h4>
+          Canales (12 articulaciones)
+          <HelpTip label="Canales">Canales 12–15 quedan fuera del perfil. Sin canal asignado, una articulación sólo se mueve en simulación.</HelpTip>
+        </h4>
         <table className="tbl">
           <thead>
             <tr>
@@ -106,7 +110,7 @@ export function ProfilePanel() {
                 <td className="mono">{j.canal ?? '—'}</td>
                 <td>{j.canalEstado}</td>
                 <td>{j.transmisionPermitida ? 'sí' : 'no'}</td>
-                <td>{isCalibrated(j) ? <span style={{ color: 'var(--ok)' }}>✔ sí</span> : <span style={{ color: 'var(--muted)' }}>no</span>}</td>
+                <td>{isCalibrated(j) ? <span className="ok-text"><ICheck size={11} /> sí</span> : <span style={{ color: 'var(--muted)' }}>no</span>}</td>
               </tr>
             ))}
           </tbody>
@@ -127,11 +131,15 @@ export function ProfilePanel() {
             Proponer 6–11 para posteriores
           </button>
         </div>
-        <div className="hint" style={{ marginTop: 6 }}>Canales 12–15 quedan fuera del perfil. Sin canal asignado, una articulación sólo se mueve en simulación.</div>
       </div>
 
       <div className="section">
-        <h4>Enlace y pérdida de comunicación</h4>
+        <h4>
+          Enlace y pérdida de comunicación
+          <HelpTip label="HOLD u OFF">
+            HOLD: detiene la trayectoria y mantiene la última consigna; los servos siguen haciendo fuerza (calor). OFF: corta la señal; el robot puede caer si no está sostenido. Ninguna es universalmente segura: pruébalas con el robot sostenido.
+          </HelpTip>
+        </h4>
         <div className="grid2">
           <label className="fl">
             Política si se pierde el enlace
@@ -153,14 +161,11 @@ export function ProfilePanel() {
             />
           </label>
         </div>
-        <div className="hint" style={{ marginTop: 6 }}>
-          HOLD: detiene la trayectoria y mantiene la última consigna; los servos siguen haciendo fuerza (calor). OFF: corta la señal; el robot puede caer si no está sostenido. Ninguna es universalmente segura: pruébalas con el robot sostenido.
-        </div>
       </div>
 
       <div className="section">
-        <h4>Modelo 3D (aproximado)</h4>
-        <div className="hint" style={{ marginBottom: 6 }}>
+        <Disclosure summary="Modelo 3D (aproximado)" meta="dimensiones en mm" className="section-disclosure">
+        <div className="hint" style={{ marginBottom: 8 }}>
           Dimensiones estimadas a partir de fotografías, en mm. Pendientes de medir en el robot.
         </div>
         <div className="grid2">
@@ -181,6 +186,7 @@ export function ProfilePanel() {
         <button className="btn sm ghost" style={{ marginTop: 6 }} onClick={() => setModel(DEFAULT_MODEL_PARAMS)}>
           Valores por defecto
         </button>
+        </Disclosure>
       </div>
       {hasErrors(issues) && <div style={{ height: 4 }} />}
     </div>
