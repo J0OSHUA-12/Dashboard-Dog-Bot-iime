@@ -1,0 +1,1 @@
+Copiado de https://github.com/pbakaus/impeccable (commit 9fadc41729c38fd47d7ae622b501558653f9d2e9, 2026-11-02 14:38:11 -0800), carpeta .claude.

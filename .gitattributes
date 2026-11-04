@@ -1,2 +1,4 @@
 *.bat text eol=crlf
 *.ino text eol=lf
+*.cmd text eol=crlf
+.claude/skills/impeccable/scripts/impeccable text eol=lf
