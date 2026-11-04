@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import type React from 'react';
 import { useApp } from './state/store';
 import { TopBar } from './components/TopBar';
 import { LeftPanel } from './components/LeftPanel';
@@ -144,21 +145,39 @@ export function App() {
     );
   }
 
-  const leftW = ui.leftOpen ? ui.leftW : 40;
   const clampW = (v: number, lo: number, hi: number) => Math.round(Math.min(hi, Math.max(lo, v)));
+  // HUD: el visor 3D ocupa todo el fondo; los paneles flotan encima.
+  // --hud-l / --hud-b = espacio que ocupan el panel izquierdo y el inferior (incluye márgenes de 12 px).
+  const hudL = (ui.leftOpen ? ui.leftW : 40) + 24;
+  const hudB = (ui.bottomOpen ? ui.bottomH : 40) + 24;
+  const hudVars = { '--hud-l': `${hudL}px`, '--hud-b': `${hudB}px`, '--hud-lw': `${ui.leftOpen ? ui.leftW : 40}px`, '--hud-bh': `${ui.bottomOpen ? ui.bottomH : 40}px` } as React.CSSProperties;
 
   return (
     <div className="app">
       <TopBar editorOpen={editorOpen} onToggleEditor={() => setEditorOpen((v) => !v)} />
-      <main className="main desk" style={{ gridTemplateColumns: `${leftW}px ${ui.leftOpen ? 5 : 0}px minmax(420px, 1fr)` }}>
-        {ui.leftOpen ? <LeftPanel onCollapse={() => setUi({ leftOpen: false })} /> : <Rail label="Patas y servos" side="left" onOpen={() => setUi({ leftOpen: true })} />}
-        {ui.leftOpen ? <Resizer dir="v" onDrag={(d) => setUi({ leftW: clampW(useApp.getState().ui.leftW + d, 270, 520) })} /> : <div />}
-        <div className="center" style={{ gridTemplateRows: ui.bottomOpen ? `minmax(240px, 1fr) 5px ${ui.bottomH}px` : 'minmax(240px, 1fr) 0px 40px' }}>
-          <Viewport />
-          {ui.bottomOpen ? <Resizer dir="h" onDrag={(d) => setUi({ bottomH: clampW(useApp.getState().ui.bottomH - d, 150, 560) })} /> : <div />}
-          {ui.bottomOpen ? <BottomPanel onCollapse={() => setUi({ bottomOpen: false })} /> : <BottomDock />}
+      <main className="main desk hud-stage" style={hudVars}>
+        <Viewport />
+        <div className={`hud hud-left ${ui.leftOpen ? '' : 'collapsed'}`}>
+          {ui.leftOpen ? (
+            <>
+              <LeftPanel onCollapse={() => setUi({ leftOpen: false })} />
+              <Resizer dir="v" onDrag={(d) => setUi({ leftW: clampW(useApp.getState().ui.leftW + d, 270, 520) })} />
+            </>
+          ) : (
+            <Rail label="Patas y servos" side="left" onOpen={() => setUi({ leftOpen: true })} />
+          )}
         </div>
-        <aside className={`drawer ${editorOpen ? 'open' : ''}`} style={{ width: ui.rightW }} inert={!editorOpen} aria-label="Editor de sketches">
+        <div className={`hud hud-bottom ${ui.bottomOpen ? '' : 'collapsed'}`}>
+          {ui.bottomOpen ? (
+            <>
+              <Resizer dir="h" onDrag={(d) => setUi({ bottomH: clampW(useApp.getState().ui.bottomH - d, 150, 560) })} />
+              <BottomPanel onCollapse={() => setUi({ bottomOpen: false })} />
+            </>
+          ) : (
+            <BottomDock />
+          )}
+        </div>
+        <aside className={`hud drawer ${editorOpen ? 'open' : ''}`} style={{ width: ui.rightW }} inert={!editorOpen} aria-label="Editor de sketches">
           <Resizer dir="v" onDrag={(d) => setUi({ rightW: clampW(useApp.getState().ui.rightW - d, 340, 860) })} />
           <EditorPanel onCollapse={() => setEditorOpen(false)} />
         </aside>

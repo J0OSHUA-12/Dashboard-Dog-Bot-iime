@@ -69,10 +69,10 @@ export function LineChart({ series, windowMs = 60000, unit, yMin, yMax, gapMs = 
       const x = (t: number) => L + ((t - t0) / windowMs) * (w - L - R);
       const y = (v: number) => T + (1 - (v - lo) / (hi - lo)) * (h - T - B);
       // rejilla
-      g.strokeStyle = '#262933';
+      g.strokeStyle = 'rgba(255,255,255,0.06)';
       g.lineWidth = 1;
-      g.fillStyle = '#6f7583';
-      g.font = '10px "JetBrains Mono", monospace';
+      g.fillStyle = '#8d93a2';
+      g.font = '11px "JetBrains Mono", monospace';
       g.textAlign = 'right';
       g.textBaseline = 'middle';
       for (let i = 0; i <= 3; i++) {
@@ -121,7 +121,7 @@ export function LineChart({ series, windowMs = 60000, unit, yMin, yMax, gapMs = 
         const lastP = arr[arr.length - 1];
         if (lastP && lastP.v !== null && now - lastP.t > gapMs) {
           g.setLineDash([3, 4]);
-          g.strokeStyle = '#6f7583';
+          g.strokeStyle = '#8d93a2';
           g.beginPath();
           g.moveTo(x(lastP.t), y(lastP.v));
           g.lineTo(x(now), y(lastP.v));

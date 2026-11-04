@@ -4,7 +4,7 @@ import { estimatedAngleDeg, getJoint, isCalibrated } from '../../shared/profile'
 import { getSequence } from '../../shared/sequences';
 import { realDisplayUs, useApp } from '../state/store';
 import { DogBotScene, ViewName } from '../three/Scene';
-import { IAlert, IChevron, ICube, IGauge, IInfo, ILayers, ILink, ISliders, ITarget } from './icons';
+import { IAlert, IChevron, IInfo, ITarget } from './icons';
 
 let sceneRef: DogBotScene | null = null;
 export function getScene() {
@@ -21,69 +21,37 @@ function Kpis() {
   const calibrated = profile.joints.filter(isCalibrated).length;
   const seqDef = seq.id ? getSequence(seq.id) : null;
   return (
-    <div className="kpis">
+    <div className="kpis" role="group" aria-label="Indicadores">
       <div className="kpi">
-        <div className="ico">
-          <ICube size={14} />
-        </div>
-        <div>
-          <div className="k">Articulaciones</div>
-          <div className="v">
-            12<small>4 patas × 3</small>
-          </div>
+        <div className="k">Articulaciones</div>
+        <div className="v">
+          12<small>4 × 3</small>
         </div>
       </div>
       <div className="kpi" title="Canales 0–5 probados con el robot suspendido (dossier). No implica calibración.">
-        <div className="ico">
-          <ISliders size={14} />
-        </div>
-        <div>
-          <div className="k">Canales probados</div>
-          <div className="v">
-            {tested}/{assigned}
-            <small>de 12</small>
-          </div>
+        <div className="k">Canales probados</div>
+        <div className="v">
+          {tested}/{assigned}
+          <small>de 12</small>
         </div>
       </div>
       <div className="kpi">
-        <div className="ico">
-          <ITarget size={14} />
-        </div>
-        <div>
-          <div className="k">Calibrados</div>
-          <div className="v" style={{ color: calibrated ? 'var(--text)' : 'var(--warn)' }}>
-            {calibrated}/12<small>{calibrated ? '' : 'pendiente'}</small>
-          </div>
+        <div className="k">Calibrados</div>
+        <div className="v">
+          {calibrated}/12{calibrated ? null : <small className="pending">pendiente</small>}
         </div>
       </div>
       <div className="kpi optional">
-        <div className="ico">
-          <ILayers size={14} />
-        </div>
-        <div>
-          <div className="k">PWM habilitado</div>
-          <div className="v">{mode === 'real' ? `${link.enabled.length} canal(es)` : <span style={{ color: 'var(--muted)' }}>— sim</span>}</div>
-        </div>
+        <div className="k">PWM</div>
+        <div className={`v ${mode === 'real' && link.enabled.length > 0 ? 'live' : ''}`}>{mode === 'real' ? `${link.enabled.length} canal(es)` : <span className="na">— sim</span>}</div>
       </div>
       <div className="kpi">
-        <div className="ico">
-          <IGauge size={14} />
-        </div>
-        <div>
-          <div className="k">Secuencia</div>
-          <div className="v" style={{ maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {seq.playing && seqDef ? (seq.phase === 'transicion' ? 'Transición…' : seqDef.nombre.split('·')[0]) : 'Ninguna'}
-          </div>
-        </div>
+        <div className="k">Secuencia</div>
+        <div className={`v seq ${seq.playing ? 'live' : ''}`}>{seq.playing && seqDef ? (seq.phase === 'transicion' ? 'Transición…' : seqDef.nombre.split('·')[0]) : 'Ninguna'}</div>
       </div>
       <div className="kpi optional" title="Ida y vuelta de HB medido por la PC (sólo con firmware conectado)">
-        <div className="ico">
-          <ILink size={14} />
-        </div>
-        <div>
-          <div className="k">Enlace (RTT)</div>
-          <div className="v">{mode === 'real' && link.rttMs !== null ? `${link.rttMs} ms` : <span style={{ color: 'var(--muted)' }}>—</span>}</div>
-        </div>
+        <div className="k">Enlace RTT</div>
+        <div className="v">{mode === 'real' && link.rttMs !== null ? `${link.rttMs} ms` : <span className="na">—</span>}</div>
       </div>
     </div>
   );

@@ -1,28 +1,33 @@
 :root {
-  /* Neutros con un leve tinte frío; el naranja queda como único acento. */
-  --bg: #101116;
-  --surface: #17191f;
-  --raised: #1f2229;
-  --raised-2: #272a33;
-  --field: #13151a;
-  --border: #2c2f38;
-  --border-soft: #22252c;
+  /* Gemelo digital: lienzo casi negro, el visor 3D al centro y paneles HUD encima. */
+  --bg: #0b0d10;
+  --surface: #101217;
+  --raised: #161920;
+  --raised-2: #1e2129;
+  --field: #0d0f13;
+  --border: rgba(255, 255, 255, 0.1);
+  --border-soft: rgba(255, 255, 255, 0.07);
+  --line: rgba(255, 255, 255, 0.07);
+  --hud-bg: rgba(12, 14, 18, 0.72);
+  --hud-blur: blur(18px) saturate(1.15);
+  --dim: #5d6370;
   --red: #d8342c;
   --orange: #f0782a;
   --sel: #ffb15c;
   --text: #eef0f3;
   --text2: #b4b9c4;
   --muted: #979dac;
-  --ok: #57c78f;
+  --ok: #34d399;
   --warn: #f5b83d;
   --err: #ff8a83;
   --sim: #c9b2ff;
   --accent-soft: rgba(240, 120, 42, 0.13);
-  --shadow-pop: 0 12px 32px rgba(0, 0, 0, 0.45), 0 2px 6px rgba(0, 0, 0, 0.3);
+  --shadow-pop: 0 12px 32px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.3);
+  --shadow-hud: 0 12px 40px rgba(0, 0, 0, 0.35);
   --ease-out: cubic-bezier(0.25, 1, 0.5, 1);
   --font: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --mono: 'JetBrains Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
-  --radius: 8px;
+  --radius: 10px;
   color-scheme: dark;
 }
 
@@ -254,8 +259,8 @@ label.chk input {
   white-space: nowrap;
 }
 .tag.ok {
-  color: #7fd6a9;
-  background: rgba(87, 199, 143, 0.1);
+  color: #6ee7b7;
+  background: rgba(16, 185, 129, 0.12);
 }
 .tag.warn {
   color: #f4c766;
@@ -714,12 +719,13 @@ label.chk input {
 }
 .leg-label {
   font-size: 11px;
-  background: rgba(23, 25, 31, 0.88);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 4px 8px;
-  color: var(--text2);
-  backdrop-filter: blur(3px);
+  background: rgba(12, 14, 18, 0.78);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 5px 9px;
+  color: var(--muted);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
   white-space: nowrap;
   transform: translateY(-14px);
 }
@@ -735,7 +741,7 @@ label.chk input {
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: var(--orange);
+  background: var(--dim);
 }
 .leg-label .ll-body {
   font-family: var(--mono);
@@ -743,7 +749,7 @@ label.chk input {
   gap: 8px;
 }
 .leg-label .ll-body b {
-  color: var(--text);
+  color: var(--text2);
   font-weight: 600;
 }
 .leg-label .ll-body .sel b {
@@ -765,50 +771,48 @@ label.chk input {
   top: 12px;
   left: 12px;
   right: 12px;
+  width: fit-content;
   display: flex;
-  gap: 8px;
   flex-wrap: nowrap;
   overflow: hidden;
-  pointer-events: none;
+  background: var(--hud-bg);
+  -webkit-backdrop-filter: var(--hud-blur);
+  backdrop-filter: var(--hud-blur);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: var(--shadow-hud);
 }
 .kpi {
-  pointer-events: auto;
   display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 12px 6px 8px;
-  background: rgba(23, 25, 31, 0.84);
-  border: 1px solid var(--border-soft);
-  border-radius: 9px;
-  backdrop-filter: blur(4px);
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  padding: 9px 18px;
   min-width: 0;
-}
-.kpi .ico {
-  width: 24px;
-  height: 24px;
-  border-radius: 6px;
-  display: grid;
-  place-items: center;
-  background: var(--raised);
-  color: var(--text2);
   flex: none;
 }
 .kpi .k {
   font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
   color: var(--muted);
   white-space: nowrap;
 }
 .kpi .v {
   font-family: var(--mono);
-  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  font-size: 15px;
   font-weight: 600;
+  color: var(--text);
   white-space: nowrap;
+  line-height: 1.15;
 }
 .kpi .v small {
   color: var(--muted);
   font-weight: 500;
-  font-size: 10.5px;
-  margin-left: 3px;
+  font-size: 11px;
+  margin-left: 6px;
 }
 .view-tools {
   position: absolute;
@@ -939,9 +943,8 @@ label.chk input {
   color: #f4c766;
 }
 .leg-card {
-  border: 1px solid var(--border-soft);
   border-radius: var(--radius);
-  background: var(--raised);
+  background: rgba(255, 255, 255, 0.025);
   overflow: hidden;
 }
 .leg-card-head {
@@ -949,16 +952,19 @@ label.chk input {
   align-items: center;
   gap: 8px;
   padding: 10px 14px;
-  border-bottom: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--line);
   font-weight: 600;
   font-size: 12.5px;
+  color: var(--text2);
 }
 .joint {
   padding: 10px 14px 12px;
-  border-bottom: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--line);
   cursor: pointer;
   position: relative;
-  transition: background 0.12s;
+  transition: background 0.15s, box-shadow 0.15s;
+  --track: var(--dim);
+  --thumb: #6b7180;
 }
 .joint:last-child {
   border-bottom: 0;
@@ -967,7 +973,11 @@ label.chk input {
   background: rgba(255, 255, 255, 0.02);
 }
 .joint.selected {
-  background: rgba(255, 177, 92, 0.08);
+  background: rgba(255, 177, 92, 0.07);
+  outline: 1px solid rgba(255, 177, 92, 0.3);
+  outline-offset: -1px;
+  --track: var(--sel);
+  --thumb: var(--sel);
 }
 .joint.selected .joint-name {
   color: var(--sel);
@@ -981,6 +991,7 @@ label.chk input {
 .joint-name {
   font-weight: 600;
   font-size: 12px;
+  color: var(--text2);
 }
 .ch {
   white-space: nowrap;
@@ -1039,17 +1050,17 @@ input[type='range'].slider {
 input[type='range'].slider::-webkit-slider-runnable-track {
   height: 4px;
   border-radius: 2px;
-  background: linear-gradient(var(--orange), var(--orange)) 0 / var(--pct, 50%) 100% no-repeat, #2b2e37;
+  background: linear-gradient(var(--track, var(--orange)), var(--track, var(--orange))) 0 / var(--pct, 50%) 100% no-repeat, rgba(255, 255, 255, 0.08);
 }
 input[type='range'].slider::-moz-range-track {
   height: 4px;
   border-radius: 2px;
-  background: #2b2e38;
+  background: rgba(255, 255, 255, 0.08);
 }
 input[type='range'].slider::-moz-range-progress {
   height: 4px;
   border-radius: 2px;
-  background: var(--orange);
+  background: var(--track, var(--orange));
 }
 input[type='range'].slider::-webkit-slider-thumb {
   -webkit-appearance: none;
@@ -1057,16 +1068,16 @@ input[type='range'].slider::-webkit-slider-thumb {
   height: 14px;
   margin-top: -5px;
   border-radius: 50%;
-  background: #fff;
-  border: 3px solid var(--orange);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  background: #eef0f3;
+  border: 3px solid var(--thumb, var(--orange));
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
 }
 input[type='range'].slider::-moz-range-thumb {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: #fff;
-  border: 3px solid var(--orange);
+  background: #eef0f3;
+  border: 3px solid var(--thumb, var(--orange));
 }
 input[type='range'].slider:disabled {
   opacity: 0.4;
@@ -1635,47 +1646,52 @@ table.tbl td.num {
 }
 .tele {
   display: grid;
-  grid-template-columns: minmax(230px, 0.75fr) minmax(0, 2.4fr);
-  gap: 12px;
-  padding: 12px 16px;
+  grid-template-columns: minmax(0, 2.7fr) minmax(250px, 0.8fr);
+  gap: 14px;
+  padding: 12px 16px 14px;
   height: 100%;
   min-height: 0;
 }
 .cards {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  gap: 1px;
   align-content: start;
   overflow: auto;
   min-height: 0;
+  border-radius: var(--radius);
+  background: var(--line);
 }
 .card {
-  border: 1px solid var(--border-soft);
-  border-radius: 8px;
   padding: 10px 12px;
-  background: var(--raised);
+  background: var(--surface);
   min-width: 0;
 }
 .card .k {
+  display: flex;
+  align-items: center;
+  gap: 5px;
   color: var(--muted);
-  font-size: 12px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  min-width: 0;
+  min-height: 22px;
 }
 .card .v {
   font-family: var(--mono);
-  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  font-size: 20px;
   font-weight: 600;
   margin-top: 2px;
   display: flex;
   align-items: baseline;
   gap: 4px;
+  color: var(--text);
 }
 .card .v.na {
   color: var(--muted);
-  font-size: 12px;
-  font-weight: 500;
 }
 .card .s {
   font-size: 12px;
@@ -1687,8 +1703,8 @@ table.tbl td.num {
 }
 .charts {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  grid-auto-rows: minmax(150px, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  grid-auto-rows: minmax(170px, 1fr);
   gap: 12px;
   min-height: 0;
   overflow-y: auto;
@@ -2120,6 +2136,369 @@ table.tbl td.num {
     display: none !important;
   }
 }
+/* =====================================================================
+   Gemelo digital · HUD
+   El visor 3D llena el escenario; paneles flotantes semitransparentes.
+   --hud-l / --hud-b (en .hud-stage) = huecos ocupados por el panel
+   izquierdo y el inferior, márgenes incluidos.
+   ===================================================================== */
+body {
+  background: var(--bg);
+}
+.topbar {
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+}
+.main.hud-stage {
+  display: block;
+  position: relative;
+  overflow: hidden;
+  background: var(--bg);
+}
+/* El lienzo pasa bajo el panel izquierdo (y un poco bajo el inferior) y su centro
+   coincide con el área libre. La altura sigue al área libre para no cambiar la escala
+   del modelo (la cámara tiene campo de visión vertical fijo). */
+.main.hud-stage > .viewport {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: calc(100% + var(--hud-l));
+  height: calc(100% - var(--hud-b) + 40px);
+  background: var(--bg);
+}
+.hud {
+  position: absolute;
+  z-index: 10;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  background: var(--hud-bg);
+  -webkit-backdrop-filter: var(--hud-blur);
+  backdrop-filter: var(--hud-blur);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: var(--shadow-hud);
+}
+.hud > .panel,
+.hud > .bottom,
+.hud > .rail {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  background: transparent;
+  border: 0;
+  border-radius: inherit;
+  overflow: hidden;
+}
+.hud-left {
+  top: 12px;
+  left: 12px;
+  bottom: 12px;
+  width: var(--hud-lw);
+}
+.hud-left.collapsed {
+  bottom: auto;
+  padding-bottom: 12px;
+}
+.hud-bottom {
+  left: var(--hud-l);
+  right: 12px;
+  bottom: 12px;
+  height: var(--hud-bh);
+  flex-direction: column;
+}
+.hud-left > .resizer.v {
+  position: absolute;
+  top: 16px;
+  bottom: 16px;
+  right: -7px;
+  width: 8px;
+  border-radius: 4px;
+}
+.hud-bottom > .resizer.h {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  top: -7px;
+  height: 8px;
+  border-radius: 4px;
+}
+.resizer::after {
+  border-radius: inherit;
+}
+.hud .panel-head,
+.hud .tabs,
+.hud .doc-tabs,
+.hud .toolbar,
+.hud .section,
+.hud .notes:not(:empty) {
+  border-color: var(--line);
+}
+.hud .doc-tabs,
+.hud .build-bar {
+  background: transparent;
+}
+.hud table.tbl th {
+  background: #111318;
+}
+.main.hud-stage > .drawer {
+  top: 12px;
+  right: 12px;
+  bottom: 12px;
+  max-width: calc(100% - 140px);
+  transform: translateX(calc(100% + 24px));
+}
+.main.hud-stage > .drawer.open {
+  transform: none;
+  box-shadow: var(--shadow-hud);
+}
+.main.hud-stage > .drawer > .resizer {
+  left: -7px;
+  top: 16px;
+  bottom: 16px;
+  width: 8px;
+}
+.drawer .console {
+  background: rgba(0, 0, 0, 0.35);
+}
+/* Superposiciones del visor, desplazadas al área libre del escenario. */
+.hud-stage .kpis {
+  top: 12px;
+  left: var(--hud-l);
+  right: calc(var(--hud-l) + 12px);
+}
+.hud-stage .sim-banner {
+  top: 78px;
+  left: var(--hud-l);
+  right: calc(var(--hud-l) + 12px);
+}
+.hud-stage .sel-card {
+  top: 78px;
+  right: calc(var(--hud-l) + 12px);
+}
+.hud-stage .view-tools {
+  bottom: 28px;
+  left: var(--hud-l);
+  right: calc(var(--hud-l) + 12px);
+}
+.hud-stage .view-note {
+  left: var(--hud-l);
+  bottom: 74px;
+}
+.view-tools,
+.sel-card,
+.view-note-toggle,
+.view-note-body,
+.view-warn,
+.sel-chip {
+  background: var(--hud-bg);
+  -webkit-backdrop-filter: var(--hud-blur);
+  backdrop-filter: var(--hud-blur);
+  border-color: var(--line);
+}
+.view-tools,
+.sel-card {
+  border-radius: 12px;
+  box-shadow: var(--shadow-hud);
+}
+.sel-card {
+  border-color: rgba(255, 177, 92, 0.3);
+}
+
+/* KPI rail: separadores finos, números monoespaciados, excepciones en color. */
+.kpi + .kpi {
+  border-left: 1px solid var(--line);
+}
+.kpi .v .na {
+  color: var(--muted);
+}
+.kpi .v.live {
+  color: var(--sel);
+}
+.kpi .v.seq {
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.kpi .v small.pending {
+  color: #f4c766;
+}
+
+/* Diseño por excepción en articulaciones: todo en gris salvo lo seleccionado o activo. */
+.joint.live:not(.selected) {
+  --track: var(--orange);
+  --thumb: var(--orange);
+}
+.joint.selected .joint-name {
+  color: var(--sel);
+}
+.joint.live .joint-name {
+  color: var(--text);
+}
+.joint:not(.selected) .ch,
+.joint:not(.selected) .ch.tested {
+  color: var(--muted);
+  border-color: var(--line);
+  background: transparent;
+}
+.joint.selected .ch {
+  color: var(--sel);
+  border-color: rgba(255, 177, 92, 0.4);
+  background: rgba(255, 177, 92, 0.08);
+}
+.joint:not(.selected):not(.live) .tag {
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.04);
+}
+.joint:not(.selected) .joint-row .btn.xs {
+  color: var(--text2);
+}
+.joint:not(.selected) .field.num {
+  color: var(--text2);
+}
+.leg-card-head .tag {
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.04);
+}
+.leg-card:has(.joint.selected) .leg-card-head {
+  color: var(--text);
+}
+.leg-label:has(.sel) {
+  border-color: rgba(255, 177, 92, 0.35);
+  color: var(--text2);
+}
+.leg-label:has(.sel) .ll-head i {
+  background: var(--sel);
+}
+.leg-label .ll-head {
+  color: var(--text2);
+}
+
+/* Telemetría: gráficas y valores grandes primero; notas en tooltips. */
+.chart {
+  border: 0;
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.025);
+}
+.chart-head {
+  border-bottom: 0;
+  padding: 10px 12px 0;
+  gap: 8px;
+}
+.chart-head .t {
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+.chart-value {
+  padding: 2px 12px 4px;
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1.15;
+  color: var(--text);
+}
+.chart-value small {
+  margin-left: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+}
+.chart-value.sel {
+  color: var(--sel);
+}
+.legend span {
+  color: var(--muted);
+}
+.legend span.on {
+  color: var(--sel);
+}
+.cards {
+  grid-template-columns: 1fr;
+}
+.card:not(.wide) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 12px;
+  align-items: center;
+}
+.card:not(.wide) .k {
+  grid-column: 1;
+}
+.card:not(.wide) .s {
+  grid-column: 1;
+  margin-top: 0;
+}
+.card:not(.wide) .v {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  margin-top: 0;
+  font-size: 18px;
+}
+.card.wide {
+  grid-column: 1 / -1;
+}
+.chart-value {
+  display: flex;
+  align-items: baseline;
+  gap: 0;
+}
+.chart-value .tag {
+  margin-left: auto;
+  align-self: center;
+  letter-spacing: 0;
+}
+.card.wide .v {
+  font-size: 13px;
+}
+.card .v.ok {
+  color: var(--ok);
+}
+.card .v small {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+}
+.card .k .k-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.card .k .help-btn {
+  margin: -3px -4px -3px 0;
+}
+.pane-title {
+  margin: 0 0 12px;
+  font-size: 12.5px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+table.tbl td.big {
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+table.tbl td.big small {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--muted);
+}
+.flow {
+  background: rgba(255, 255, 255, 0.025);
+  border-color: var(--line);
+}
+.flow-step.done .flow-num {
+  color: var(--ok);
+  background: rgba(16, 185, 129, 0.12);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .drawer,
   .drawer.open,
@@ -2130,4 +2509,50 @@ table.tbl td.num {
   .progress i {
     animation-duration: 3s;
   }
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .hud,
+  .kpis,
+  .view-tools,
+  .sel-card {
+    background: rgba(12, 14, 18, 0.94);
+  }
+}
+
+/* En el escenario HUD el lienzo es más ancho que el área libre: las reglas de
+   contenedor del visor no bastan, se ajusta por ancho de ventana. */
+@media (max-width: 1300px) {
+  .hud-stage .sel-card {
+    display: none;
+  }
+  .hud-stage .sel-chip {
+    display: inline-flex;
+  }
+}
+@media (max-width: 1240px) {
+  .hud-stage .kpi.optional {
+    display: none;
+  }
+}
+
+/* Dentro del HUD los acordeones son filas planas con una línea fina, no tarjetas. */
+.hud .section-disclosure {
+  background: transparent;
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  margin-top: 12px;
+}
+.hud .section-disclosure > summary {
+  padding-left: 0;
+  border-radius: 0;
+}
+.hud .section-disclosure .disclosure-body {
+  padding-left: 19px;
+  padding-right: 0;
+}
+
+table.tbl td.mono {
+  white-space: nowrap;
 }

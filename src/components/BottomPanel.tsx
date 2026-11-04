@@ -8,6 +8,7 @@ import { service } from '../services/serviceClient';
 import { client } from '../services/robotLink';
 import { ChartSeries, LineChart } from './Chart';
 import { toast } from './Dialog';
+import { HelpTip } from './Disclosure';
 import { IAlert, IBattery, IChevron, IDownload, IError, IGauge, IInfo, ICheck, IThermo, ITrash } from './icons';
 
 const TABS: [BottomTab, string][] = [
@@ -17,8 +18,6 @@ const TABS: [BottomTab, string][] = [
   ['ensayos', 'Registro de ensayos'],
   ['mediciones', 'Mediciones'],
 ];
-
-const CH_COLORS = ['#ff7a1a', '#ef3e36', '#ffb15c', '#e8c547', '#ff5a8a', '#c5a3ff', '#7cc4ff', '#57c78f', '#a8adb8', '#f08c5a', '#b9e06b', '#6fd3d0'];
 
 function fmtTime(at: number) {
   const d = new Date(at);
@@ -46,6 +45,17 @@ function exportSession() {
   downloadText(`dogbot-sesion-${stamp()}.csv`, toCsv(['timestamp', 'modo', 'tipo', 'canal_o_senal', 'valor', 'fuente', 'validez', 'detalle'], rows), 'text/csv');
 }
 
+/** Último valor válido de una serie (sólo lectura, para mostrarlo en grande). */
+function lastValue(space: 'sim' | 'real', id: string): number | null {
+  const d = getSeries(space, id);
+  for (let i = d.length - 1; i >= 0; i--) if (d[i].v !== null) return d[i].v;
+  return null;
+}
+
+// Diseño por excepción: canales en gris; sólo el canal seleccionado en ámbar.
+const CH_DIM = '#4b505c';
+const CH_SEL = '#ffb15c';
+
 function Telemetry() {
   const mode = useApp((s) => s.mode);
   const link = useApp((s) => s.link);
@@ -67,8 +77,11 @@ function Telemetry() {
   }, [channels.join(','), selCh]);
 
   const consignaSeries: ChartSeries[] = useMemo(
-    () => shown.map((c) => ({ label: `CH${c}`, color: CH_COLORS[c % CH_COLORS.length], data: () => getSeries(sim ? 'sim' : 'real', `ch${c}`) })),
-    [shown.join(','), sim],
+    () =>
+      [...shown]
+        .sort((a, b) => (a === selCh ? 1 : b === selCh ? -1 : 0))
+        .map((c) => ({ label: `CH${c}`, color: c === selCh ? CH_SEL : CH_DIM, data: () => getSeries(sim ? 'sim' : 'real', `ch${c}`) })),
+    [shown.join(','), sim, selCh],
   );
   const bankSeries: ChartSeries[] = useMemo(
     () => [
@@ -76,10 +89,14 @@ function Telemetry() {
     ],
     [],
   );
-  const currSeries: ChartSeries[] = useMemo(() => [{ label: 'Corriente (A) SIMULADA', color: '#ef3e36', data: () => getSeries('sim', 'corriente_a') }], []);
-  const rttSeries: ChartSeries[] = useMemo(() => [{ label: 'RTT (ms)', color: '#ff7a1a', data: () => getSeries('real', 'rtt') }], []);
+  const currSeries: ChartSeries[] = useMemo(() => [{ label: 'Corriente (A) SIMULADA', color: '#ff8a5c', data: () => getSeries('sim', 'corriente_a') }], []);
+  const rttSeries: ChartSeries[] = useMemo(() => [{ label: 'RTT (ms)', color: '#ffb15c', data: () => getSeries('real', 'rtt') }], []);
   const rttValidity = validityFor(link.rttAt, now, 500);
   const pwValidity = validityFor(link.lastRxAt, now, 500);
+
+  const bankV = sim ? lastValue('sim', 'banco_v') : null;
+  const currA = sim ? lastValue('sim', 'corriente_a') : null;
+  const selUs = selCh !== null && selCh !== undefined ? lastValue(sim ? 'sim' : 'real', `ch${selCh}`) : null;
 
   const icons: Record<string, ReactNode> = {
     bateria_v: <IBattery size={12} />,
@@ -91,95 +108,130 @@ function Telemetry() {
 
   return (
     <div className="tele">
-      <div className="cards" aria-label="Señales">
-        <div className="card" style={{ gridColumn: '1 / -1' }}>
-          <div className="k">Enlace / firmware</div>
+      <div className="charts">
+        <div className="chart primary">
+          <div className="chart-head">
+            <span className="t">Tensión del banco</span>
+            {!sim && <span className="tag muted">sin sensor</span>}
+            <span className="spacer" />
+            {sim && (
+              <HelpTip label="Tensión simulada">Señal sintética para explorar la interfaz. No representa el robot.</HelpTip>
+            )}
+          </div>
           {sim ? (
-            <div className="v na">Simulación: sin enlace con hardware</div>
+            <>
+              <div className="chart-value">
+                {bankV === null ? '—' : bankV.toFixed(2)}
+                <small>V</small>
+                <span className="tag sim">SIMULADO</span>
+              </div>
+              <LineChart series={bankSeries} unit="V" yMin={6.9} yMax={7.1} />
+            </>
+          ) : (
+            <div className="empty">No hay sensor de tensión conectado al Arduino. Consulta las mediciones manuales (pestaña Mediciones).</div>
+          )}
+        </div>
+        <div className="chart primary">
+          <div className="chart-head">
+            <span className="t">{sim ? 'Corriente del banco' : 'Latencia de enlace (HB)'}</span>
+            {!sim && <span className="tag">PC</span>}
+            <span className="spacer" />
+            {sim && (
+              <HelpTip label="Corriente simulada">Sintética. Las corrientes reales requieren un sensor; no se reparte la total entre servos.</HelpTip>
+            )}
+          </div>
+          {sim ? (
+            <>
+              <div className="chart-value">
+                {currA === null ? '—' : currA.toFixed(2)}
+                <small>A</small>
+                <span className="tag sim">SIMULADO</span>
+              </div>
+              <LineChart series={currSeries} unit="A" yMin={0} yMax={0.6} />
+            </>
+          ) : getSeries('real', 'rtt').length === 0 ? (
+            <div className="empty">Sin heartbeat: el RTT se mide sólo con el robot armado.</div>
           ) : (
             <>
-              <div className="v" style={{ fontSize: 12.5 }}>
-                {link.state} · {link.firmware ? `fw ${link.firmware.fw}` : 'sin identificar'} · RTT {link.rttMs ?? '—'} ms
+              <div className="chart-value">
+                {link.rttMs ?? '—'}
+                <small>ms</small>
               </div>
-              <div className="s">
-                Fuente: PC/firmware · {link.rttAt ? `hace ${Math.round((now - link.rttAt) / 1000)} s` : 'sin datos'} · {VALIDITY_LABEL[rttValidity]} · PW {VALIDITY_LABEL[pwValidity]}
-              </div>
+              <LineChart series={rttSeries} unit="ms" yMin={0} yMax={60} gapMs={1500} />
             </>
           )}
         </div>
-        {PHYSICAL_SIGNALS.filter((s) => s.id !== 'angulo' && s.id !== 'imu').map((s) => (
-          <div className="card" key={s.id} title={s.nota}>
-            <div className="k">
-              {icons[s.id]} {s.label}
-            </div>
-            <div className="v na">Sin sensor</div>
-            <div className="s">
-              {s.unit} · {s.nota}
-            </div>
-          </div>
-        ))}
-        <div className="card" title="Servos de 3 hilos sin feedback">
-          <div className="k">Ángulo físico / IMU</div>
-          <div className="v na">No disponible</div>
-          <div className="s">Sólo ángulo ESTIMADO visual</div>
-        </div>
-      </div>
-      <div className="charts">
         <div className="chart">
           <div className="chart-head">
             <span className="t">{sim ? 'Consigna simulada por canal' : 'Consigna escrita por el firmware (PW)'}</span>
             <span className="spacer" />
-            <span className={`tag ${sim ? 'sim' : 'real'}`}>{sim ? 'SIMULACIÓN' : 'FIRMWARE'}</span>
+            <HelpTip label="Consigna por canal">Consignas en µs, no posiciones medidas. Resaltado: el canal de la articulación seleccionada; el resto, en gris.</HelpTip>
           </div>
           {!sim && channels.length > 0 && getSeries('real', `ch${shown[0]}`).length === 0 ? (
-            <div className="empty">Sin datos del firmware. Las consignas aparecen al habilitar canales (no son posiciones medidas).</div>
+            <>
+              <div className="chart-value sel">
+                —<small>µs</small>
+                <span className="tag real">FIRMWARE</span>
+              </div>
+              <div className="empty">Sin datos del firmware. Las consignas aparecen al habilitar canales (no son posiciones medidas).</div>
+            </>
           ) : (
-            <LineChart series={consignaSeries} unit="µs" yMin={1300} yMax={1700} gapMs={sim ? 1500 : 1200} />
+            <>
+              <div className="chart-value sel">
+                {selUs ?? '—'}
+                <small>µs · {selCh !== null && selCh !== undefined ? `CH${selCh}` : 'sin canal'}</small>
+                <span className={`tag ${sim ? 'sim' : 'real'}`}>{sim ? 'SIMULACIÓN' : 'FIRMWARE'}</span>
+              </div>
+              <LineChart series={consignaSeries} unit="µs" yMin={1300} yMax={1700} gapMs={sim ? 1500 : 1200} />
+            </>
           )}
           <div className="legend">
-            {consignaSeries.map((s) => (
-              <span key={s.label}>
+            {[...consignaSeries].reverse().map((s) => (
+              <span key={s.label} className={s.color === CH_SEL ? 'on' : ''}>
                 <i style={{ background: s.color }} />
                 {s.label}
               </span>
             ))}
           </div>
         </div>
-        <div className="chart">
-          <div className="chart-head">
-            <span className="t">{sim ? 'Banco de servos — tensión' : 'Tensión del banco'}</span>
-            <span className="spacer" />
-            {sim ? <span className="tag sim">SIMULADO</span> : <span className="tag muted">sin sensor</span>}
-          </div>
+      </div>
+      <div className="cards" aria-label="Señales">
+        <div className="card wide">
+          <div className="k">Enlace / firmware</div>
           {sim ? (
+            <div className="v na">Sin enlace con hardware</div>
+          ) : (
             <>
-              <LineChart series={bankSeries} unit="V" yMin={6.9} yMax={7.1} />
-              <div className="legend">
-                <span>Señal sintética para explorar la interfaz. No representa el robot.</span>
+              <div className={`v ${link.state === 'armado' || link.state === 'desarmado' ? 'ok' : ''}`}>
+                {link.state} · {link.firmware ? `fw ${link.firmware.fw}` : 'sin identificar'}
+              </div>
+              <div className="s">
+                RTT {link.rttMs ?? '—'} ms · {link.rttAt ? `hace ${Math.round((now - link.rttAt) / 1000)} s` : 'sin datos'} · {VALIDITY_LABEL[rttValidity]} · PW {VALIDITY_LABEL[pwValidity]}
               </div>
             </>
-          ) : (
-            <div className="empty">No hay sensor de tensión conectado al Arduino. Consulta las mediciones manuales (pestaña Mediciones).</div>
           )}
         </div>
-        <div className="chart">
-          <div className="chart-head">
-            <span className="t">{sim ? 'Banco de servos — corriente' : 'Latencia de enlace (HB)'}</span>
-            <span className="spacer" />
-            {sim ? <span className="tag sim">SIMULADO</span> : <span className="tag">PC</span>}
+        {PHYSICAL_SIGNALS.filter((s) => s.id !== 'angulo' && s.id !== 'imu').map((s) => (
+          <div className="card" key={s.id}>
+            <div className="k">
+              {icons[s.id]} <span className="k-text">{s.label}</span>
+              <HelpTip label={s.label}>{s.nota}</HelpTip>
+            </div>
+            <div className="v na">
+              —<small>{s.unit}</small>
+            </div>
+            <div className="s">Sin sensor</div>
           </div>
-          {sim ? (
-            <>
-              <LineChart series={currSeries} unit="A" yMin={0} yMax={0.6} />
-              <div className="legend">
-                <span>Sintética. Las corrientes reales requieren un sensor; no se reparte la total entre servos.</span>
-              </div>
-            </>
-          ) : getSeries('real', 'rtt').length === 0 ? (
-            <div className="empty">Sin heartbeat: el RTT se mide sólo con el robot armado.</div>
-          ) : (
-            <LineChart series={rttSeries} unit="ms" yMin={0} yMax={60} gapMs={1500} />
-          )}
+        ))}
+        <div className="card">
+          <div className="k">
+            <span className="k-text">Ángulo físico / IMU</span>
+            <HelpTip label="Ángulo físico / IMU">Servos de 3 hilos sin feedback. Sólo hay ángulo ESTIMADO visual.</HelpTip>
+          </div>
+          <div className="v na">
+            —<small>°</small>
+          </div>
+          <div className="s">No disponible</div>
         </div>
       </div>
     </div>
@@ -441,9 +493,10 @@ function Measurements() {
   return (
     <div className="split2">
       <div style={{ padding: 10 }}>
-        <div className="note" style={{ marginBottom: 8 }}>
-          Mediciones manuales con instrumento externo. Se guardan separadas del histórico del dossier y nunca se mezclan con datos simulados.
-        </div>
+        <h4 className="pane-title">
+          Nueva medición manual
+          <HelpTip label="Mediciones manuales">Mediciones manuales con instrumento externo. Se guardan separadas del histórico del dossier y nunca se mezclan con datos simulados.</HelpTip>
+        </h4>
         <div className="grid2">
           <label className="fl">
             Magnitud
@@ -517,8 +570,8 @@ function Measurements() {
                 </td>
                 <td className="mono">{m.fecha}</td>
                 <td>{m.magnitud}</td>
-                <td className="mono num">
-                  {m.valor} {m.unidad}
+                <td className="mono num big">
+                  {m.valor} <small>{m.unidad}</small>
                 </td>
                 <td>{m.condicion}</td>
                 <td>{m.montaje}</td>
@@ -537,12 +590,12 @@ function Measurements() {
                 </td>
                 <td className="mono">{m.fecha}</td>
                 <td>{m.magnitud}</td>
-                <td className="mono num">
-                  {m.valor} {m.unidad}
+                <td className="mono num big">
+                  {m.valor} <small>{m.unidad}</small>
                 </td>
                 <td>{m.condicion}</td>
                 <td>{m.montaje === 'carga parcial' ? <span className="tag warn">carga parcial</span> : m.montaje}</td>
-                <td className="hint">{m.nota}</td>
+                <td>{m.nota ? <HelpTip label="Nota del dossier">{m.nota}</HelpTip> : null}</td>
                 <td />
               </tr>
             ))}

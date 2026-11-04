@@ -10,7 +10,7 @@ import { ModelParams } from './modelParams';
 
 export type ViewName = 'iso' | 'frontal' | 'lateral' | 'superior';
 
-const BG = 0x111217;
+const BG = 0x0b0d10;
 
 function glowTexture() {
   const c = document.createElement('canvas');

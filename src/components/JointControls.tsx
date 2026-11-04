@@ -104,7 +104,7 @@ const JointRow = memo(function JointRow({ id }: { id: JointId }) {
   const stepBy = (d: number) => set(value + d);
 
   return (
-    <div ref={ref} className={`joint ${selected ? 'selected' : ''}`} onClick={() => useApp.getState().select(id)} data-joint={id}>
+    <div ref={ref} className={`joint ${selected ? 'selected' : ''} ${enabled ? 'live' : ''}`} onClick={() => useApp.getState().select(id)} data-joint={id}>
       <div className="joint-top">
         <span className="joint-name">{JOINT_LABEL[cfg.joint.split('-')[1] as keyof typeof JOINT_LABEL]}</span>
         <ChannelBadge j={cfg} />
