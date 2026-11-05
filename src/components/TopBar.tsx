@@ -1,18 +1,22 @@
 import { useApp } from '../state/store';
 import { LINK_STATE_LABEL } from '../../shared/protocolClient';
-import { armFlow, connect, disarmFlow, disconnect, pwmOff, stopAll, switchMode } from '../services/actions';
+import { armFlow, closeProgram, connect, disarmFlow, disconnect, stopAll, switchMode, togglePwmAll } from '../services/actions';
 import { client, refreshPorts } from '../services/robotLink';
-import { IAlert, IChip, IPaw, IPlug, IPower, IRefresh, IStop } from './icons';
+import { IAlert, IChip, IExit, IMoon, IPaw, IPlug, IPower, IRefresh, IStop, ISun } from './icons';
 
 export function TopBar() {
   const mode = useApp((s) => s.mode);
   const link = useApp((s) => s.link);
   const setLink = useApp((s) => s.setLink);
   const calib = useApp((s) => s.calibrationActive);
+  const theme = useApp((s) => s.ui.theme);
+  const setUi = useApp((s) => s.setUi);
   const real = mode === 'real';
   const open = link.serial.state === 'abierto';
   const st = link.state;
   const compatible = st === 'desarmado' || st === 'armado' || st === 'enlace-perdido';
+  const pwmCount = link.enabled.length;
+  const pwmOn = real && pwmCount > 0;
   const stateTone =
     st === 'armado' ? 'orange' : st === 'desarmado' ? 'ok' : st === 'fallo' || st === 'incompatible' || st === 'enlace-perdido' ? 'err' : st === 'firmware-desconocido' ? 'warn' : '';
 
@@ -140,23 +144,53 @@ export function TopBar() {
       <div className="spacer" />
 
       <div className="stop-cluster">
-        <button className="btn stop" onClick={stopAll} title="Detener trayectoria y vaciar la cola (Esc). No desenergiza los servos.">
+        <button className="btn stop" onClick={stopAll} title="Parada de emergencia (Esc): cancela la secuencia/trayectoria en curso. NO cierra el programa ni desenergiza los servos (para eso: PWM OFF o Cerrar).">
           <IStop size={13} /> DETENER
         </button>
-        <button
-          className="btn danger sm"
-          onClick={pwmOff}
-          disabled={!real || !compatible}
-          title="Desactivar señal PWM en todos los canales. Los servos pueden ceder: el robot puede perder apoyo."
-        >
-          <IPower size={13} /> PWM OFF
-        </button>
+        {pwmOn ? (
+          <button
+            className="btn danger sm"
+            onClick={togglePwmAll}
+            aria-pressed
+            title={`PWM activo en ${pwmCount} canal(es). Clic: desactivar la señal en TODOS. Los servos pueden ceder: el robot puede perder apoyo.`}
+          >
+            <IPower size={13} /> PWM OFF
+            <span className="tb-wide mono" style={{ opacity: 0.75 }}>· {pwmCount}</span>
+          </button>
+        ) : (
+          <button
+            className="btn sm pwm-on"
+            onClick={togglePwmAll}
+            aria-pressed={false}
+            disabled={!real || !compatible || st === 'enlace-perdido' || !link.controller}
+            title={
+              !real
+                ? 'Disponible en modo ROBOT REAL'
+                : !compatible
+                  ? 'Conecta el robot y espera a que se identifique el firmware DOGBOT'
+                  : 'Armar (si hace falta) y habilitar PWM en todos los canales elegibles, en su pulso de referencia. Pide confirmación.'
+            }
+          >
+            <IPower size={13} /> PWM ON
+          </button>
+        )}
         <button
           className="btn sm tb-hide-narrow"
           disabled
           title="No hay hardware de corte de energía controlado por software. Usa el interruptor físico de la batería/regulador."
         >
           Corte energía: sin HW
+        </button>
+        <button
+          className="btn sm icon ghost"
+          onClick={() => setUi({ theme: theme === 'dark' ? 'light' : 'dark' })}
+          title={theme === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+          aria-label={theme === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+        >
+          {theme === 'dark' ? <ISun size={15} /> : <IMoon size={15} />}
+        </button>
+        <button className="btn sm" onClick={closeProgram} title="Cerrar el programa: detiene, desarma, libera el COM y apaga el servicio local.">
+          <IExit size={14} /> <span className="tb-wide">Cerrar</span>
         </button>
       </div>
     </header>

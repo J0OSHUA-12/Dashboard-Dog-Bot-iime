@@ -60,6 +60,15 @@ builds.on('job', (job) => {
   if (job.state !== 'en-curso' && (job.kind === 'install-core' || job.kind === 'install-lib')) tools = null;
 });
 
+let shuttingDown = false;
+const shutdown = async () => {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log('  Cerrando Dog Bot Control: se libera el puerto COM.');
+  await serial.close().catch(() => undefined);
+  process.exit(0);
+};
+
 const server = createServer({
   paths,
   sec,
@@ -68,6 +77,7 @@ const server = createServer({
   sketches: new SketchStore(paths),
   detect,
   log: (m) => console.log(`[${new Date().toLocaleTimeString()}] ${m}`),
+  onShutdown: () => void shutdown(),
 });
 
 server.on('error', (e: NodeJS.ErrnoException) => {
@@ -89,9 +99,5 @@ server.listen(port, '127.0.0.1', () => {
   });
 });
 
-const shutdown = async () => {
-  await serial.close().catch(() => undefined);
-  process.exit(0);
-};
 process.on('SIGINT', shutdown);
 process.on('SIGTERM', shutdown);

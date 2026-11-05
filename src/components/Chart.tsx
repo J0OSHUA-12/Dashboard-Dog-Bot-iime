@@ -1,6 +1,12 @@
 // Gráfica de líneas en canvas. Huecos (null) se dibujan como cortes.
 import { useEffect, useRef } from 'react';
 import { Sample } from '../../shared/telemetry';
+import { useApp } from '../state/store';
+
+const CHART_THEME = {
+  dark: { grid: '#262933', text: '#6f7583' },
+  light: { grid: '#e1e4ea', text: '#737986' },
+} as const;
 
 export interface ChartSeries {
   label: string;
@@ -40,6 +46,7 @@ export function LineChart({ series, windowMs = 60000, unit, yMin, yMax, gapMs = 
       const g = c.getContext('2d')!;
       g.setTransform(dpr, 0, 0, dpr, 0, 0);
       g.clearRect(0, 0, w, h);
+      const pal = CHART_THEME[useApp.getState().ui.theme] ?? CHART_THEME.dark;
       const now = Date.now();
       const t0 = now - windowMs;
       const all = series.map((s) => s.data().filter((p) => p.t >= t0 - gapMs));
@@ -69,9 +76,9 @@ export function LineChart({ series, windowMs = 60000, unit, yMin, yMax, gapMs = 
       const x = (t: number) => L + ((t - t0) / windowMs) * (w - L - R);
       const y = (v: number) => T + (1 - (v - lo) / (hi - lo)) * (h - T - B);
       // rejilla
-      g.strokeStyle = '#262933';
+      g.strokeStyle = pal.grid;
       g.lineWidth = 1;
-      g.fillStyle = '#6f7583';
+      g.fillStyle = pal.text;
       g.font = '10px "JetBrains Mono", monospace';
       g.textAlign = 'right';
       g.textBaseline = 'middle';
@@ -121,7 +128,7 @@ export function LineChart({ series, windowMs = 60000, unit, yMin, yMax, gapMs = 
         const lastP = arr[arr.length - 1];
         if (lastP && lastP.v !== null && now - lastP.t > gapMs) {
           g.setLineDash([3, 4]);
-          g.strokeStyle = '#6f7583';
+          g.strokeStyle = pal.text;
           g.beginPath();
           g.moveTo(x(lastP.t), y(lastP.v));
           g.lineTo(x(now), y(lastP.v));

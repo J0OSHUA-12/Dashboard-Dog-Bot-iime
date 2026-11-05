@@ -10,7 +10,11 @@ import { ModelParams } from './modelParams';
 
 export type ViewName = 'iso' | 'frontal' | 'lateral' | 'superior';
 
-const BG = 0x111217;
+const SCENE_THEME = {
+  dark: { bg: 0x111217, gridMain: 0x2c2f3a, gridSub: 0x1e2029 },
+  light: { bg: 0xe9ecf1, gridMain: 0xbcc2cc, gridSub: 0xd3d7df },
+} as const;
+const BG = SCENE_THEME.dark.bg;
 
 function glowTexture() {
   const c = document.createElement('canvas');
@@ -51,6 +55,8 @@ export class DogBotScene {
   private target = new THREE.Vector3(0, 1.45, 0);
   private userMoved = false;
   private lastView: ViewName = 'iso';
+  private gridLines: THREE.GridHelper | null = null;
+  private theme: keyof typeof SCENE_THEME = 'dark';
 
   constructor(
     private host: HTMLElement,
@@ -105,10 +111,7 @@ export class DogBotScene {
     floor.rotation.x = -Math.PI / 2;
     floor.receiveShadow = true;
     this.scene.add(floor);
-    const gh = new THREE.GridHelper(24, 48, 0x2c2f3a, 0x1e2029);
-    (gh.material as THREE.Material).transparent = true;
-    (gh.material as THREE.Material).opacity = 0.9;
-    this.grid.add(gh);
+    this.setGridLines(SCENE_THEME.dark.gridMain, SCENE_THEME.dark.gridSub);
     const glow = new THREE.Mesh(new THREE.PlaneGeometry(9, 9), new THREE.MeshBasicMaterial({ map: glowTexture(), transparent: true, depthWrite: false }));
     glow.rotation.x = -Math.PI / 2;
     glow.position.y = 0.002;
@@ -277,11 +280,34 @@ export class DogBotScene {
     this.labels.render(this.scene, this.camera);
   };
 
+  private setGridLines(main: number, sub: number) {
+    if (this.gridLines) {
+      this.grid.remove(this.gridLines);
+      this.gridLines.geometry.dispose();
+      (this.gridLines.material as THREE.Material).dispose();
+    }
+    const gh = new THREE.GridHelper(24, 48, main, sub);
+    (gh.material as THREE.Material).transparent = true;
+    (gh.material as THREE.Material).opacity = 0.9;
+    this.grid.add(gh);
+    this.gridLines = gh;
+  }
+
+  /** Fondo, niebla y rejilla según el tema claro/oscuro de la interfaz. */
+  private applyTheme(theme: keyof typeof SCENE_THEME) {
+    this.theme = theme;
+    const t = SCENE_THEME[theme];
+    this.renderer.setClearColor(t.bg, 1);
+    (this.scene.fog as THREE.Fog).color.setHex(t.bg);
+    this.setGridLines(t.gridMain, t.gridSub);
+  }
+
   private updateFromState() {
     const s = useApp.getState();
     const now = performance.now();
     this.model.cover.visible = s.ui.showCover;
     this.grid.visible = s.ui.showGrid;
+    if (s.ui.theme !== this.theme) this.applyTheme(s.ui.theme);
     this.axes.visible = s.ui.showAxes;
     this.labels.domElement.style.display = s.ui.showLabels ? '' : 'none';
     let ghostVisible = false;

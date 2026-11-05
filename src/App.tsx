@@ -6,7 +6,7 @@ import { Viewport } from './components/Viewport';
 import { EditorPanel } from './components/EditorPanel';
 import { BottomPanel } from './components/BottomPanel';
 import { DialogHost } from './components/Dialog';
-import { IChart, ICode, ICube, ISliders } from './components/icons';
+import { IChart, ICode, ICube, IPaw, ISliders } from './components/icons';
 import { stopAll } from './services/actions';
 import { initService } from './services/robotLink';
 import { startSimTelemetry } from './services/player';
@@ -69,6 +69,7 @@ export function App() {
   const ui = useApp((s) => s.ui);
   const setUi = useApp((s) => s.setUi);
   const narrow = useNarrow();
+  const closed = useApp((s) => s.closed);
 
   useEffect(() => {
     initService();
@@ -80,6 +81,21 @@ export function App() {
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
   }, []);
+
+  if (closed) {
+    return (
+      <div className="closed-screen" role="status">
+        <div className="closed-card">
+          <div className="closed-logo">
+            <IPaw size={22} color="#1a0e05" />
+          </div>
+          <h1>Dog Bot Control cerrado</h1>
+          <p>Se detuvo todo, se liberó el puerto COM y se apagó el servicio local. Ya puedes cerrar esta pestaña.</p>
+          <p className="muted">Para volver a usarlo, ejecuta de nuevo INICIAR_DOGBOT.bat.</p>
+        </div>
+      </div>
+    );
+  }
 
   if (narrow) {
     const tab = ui.mobileTab;

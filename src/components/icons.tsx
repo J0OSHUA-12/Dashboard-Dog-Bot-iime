@@ -200,3 +200,20 @@ export const IThermo = (p: P) => (
     <path d="M14 14.8V4a2 2 0 0 0-4 0v10.8a4 4 0 1 0 4 0z" />
   </svg>
 );
+export const ISun = (p: P) => (
+  <svg {...base(p.size, p)}>
+    <circle cx="12" cy="12" r="4" />
+    <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+  </svg>
+);
+export const IMoon = (p: P) => (
+  <svg {...base(p.size, p)}>
+    <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" />
+  </svg>
+);
+export const IExit = (p: P) => (
+  <svg {...base(p.size, p)}>
+    <path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4" />
+    <path d="M9 8l-4 4 4 4M5 12h11" />
+  </svg>
+);

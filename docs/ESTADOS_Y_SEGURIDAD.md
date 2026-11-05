@@ -25,9 +25,30 @@ Al pasar a simulación hay que desarmar primero. El puerto se cierra al cambiar.
 
 | Acción | Dónde | Efecto | Lo que NO garantiza |
 |---|---|---|---|
-| **DETENER** (Esc) | Botón rojo arriba | Cancela la secuencia, vacía la cola y envía `STOP` con prioridad. La consigna queda congelada | Que el servo físico ya esté quieto. Los servos **siguen con fuerza** |
-| **PWM OFF** | Botón arriba / «PWM off canal» | `OFF ALL` / `OFF ch`: sin pulso | Que el robot se sostenga: los servos **pueden ceder y el robot puede caer** |
+| **DETENER** (Esc) | Botón rojo arriba | Cancela la secuencia, vacía la cola y envía `STOP` con prioridad. La consigna queda congelada. **No cierra el programa** | Que el servo físico ya esté quieto. Los servos **siguen con fuerza** |
+| **PWM OFF** | Interruptor «PWM ON / PWM OFF» arriba / «PWM off canal» | `OFF ALL` / `OFF ch`: sin pulso | Que el robot se sostenga: los servos **pueden ceder y el robot puede caer** |
 | **Corte de energía** | Mostrado como «sin HW» | No hay hardware controlado por software | — Usa el **interruptor físico** de la batería o el regulador |
+
+### Interruptor PWM de la barra superior
+
+- **PWM ON** (ningún canal con señal): tras una única confirmación, arma el robot si hace falta
+  y envía `ENABLE` a **todos** los canales elegibles, cada uno en su pulso de referencia. Si ya
+  está armado respeta el modo del firmware; si no, usa EJECUCIÓN cuando hay canales calibrados
+  y CALIBRACIÓN cuando sólo hay bandas de exploración (o la sesión de calibración está activa).
+  Los canales sin banda o sin canal se omiten y el diálogo dice por qué.
+- **PWM OFF** (algún canal con señal; muestra cuántos): `OFF ALL` inmediato, sin diálogo.
+
+### Cerrar el programa
+
+El botón **Cerrar** (icono de salida, arriba a la derecha) pide confirmación y entonces detiene
+la secuencia, desarma (corta PWM) si el robot estaba armado, libera el puerto COM y apaga el
+servicio local; la ventana de `INICIAR_DOGBOT.bat` se cierra sola. Se rechaza mientras haya una
+compilación o carga en curso. Para volver a usarlo, ejecuta otra vez `INICIAR_DOGBOT.bat`.
+
+### Modo claro / oscuro
+
+El botón con el sol / la luna, junto a «Cerrar», alterna entre ambos temas. La preferencia se
+guarda en el navegador.
 
 ## Pérdida de enlace (configurable en Perfil → Enlace)
 

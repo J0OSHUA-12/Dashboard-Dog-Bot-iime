@@ -11,7 +11,9 @@ import { SketchStore } from '../service/src/sketches';
 import { makePaths, safeJoin } from '../service/src/paths';
 import { makeSecurity, hostAllowed, originAllowed, tokenMatches } from '../service/src/security';
 import { detectTools, parseCoreVersion, parseLibVersion, parseSizes, uploadArgs, diagnoseUpload } from '../service/src/arduinoCli';
-import { isValidSketchName } from '../shared/serviceApi';
+import { isValidSketchName, TOKEN_HEADER } from '../shared/serviceApi';
+import { createServer } from '../service/src/server';
+import type { AddressInfo } from 'node:net';
 import type { IncomingMessage } from 'node:http';
 
 function tmp(prefix: string) {
@@ -293,6 +295,55 @@ describe('seguridad del servicio', () => {
     expect(tokenMatches(sec, 'a'.repeat(48))).toBe(true);
     expect(tokenMatches(sec, 'b'.repeat(48))).toBe(false);
     expect(tokenMatches(sec, undefined)).toBe(false);
+  });
+});
+
+describe('cierre del programa (POST /api/shutdown)', () => {
+  async function start(onShutdown?: () => void) {
+    const root = tmp('dogbot shutdown ');
+    const token = 'c'.repeat(48);
+    const sec = makeSecurity(1, token);
+    const { bm } = makeBM(new FakeCli());
+    const server = createServer({
+      paths: makePaths(root),
+      sec,
+      serial: new SerialManager({ create: () => new FakePort(), list: async () => [] }),
+      builds: bm,
+      sketches: new SketchStore(makePaths(root)),
+      detect: async () => {
+        throw new Error('no usado');
+      },
+      onShutdown,
+    });
+    await new Promise<void>((r) => server.listen(0, '127.0.0.1', () => r()));
+    const port = (server.address() as AddressInfo).port;
+    sec.allowedHosts.add(`127.0.0.1:${port}`);
+    const post = (tok: string) => fetch(`http://127.0.0.1:${port}/api/shutdown`, { method: 'POST', headers: { [TOKEN_HEADER]: tok } });
+    return { server, post, token };
+  }
+
+  it('exige token y llama al cierre ordenado', async () => {
+    const onShutdown = vi.fn();
+    const { server, post, token } = await start(onShutdown);
+    try {
+      expect((await post('x'.repeat(48))).status).toBe(401);
+      expect(onShutdown).not.toHaveBeenCalled();
+      const res = await post(token);
+      expect(res.status).toBe(200);
+      await new Promise((r) => setTimeout(r, 250));
+      expect(onShutdown).toHaveBeenCalledTimes(1);
+    } finally {
+      server.close();
+    }
+  });
+
+  it('sin manejador de cierre responde 501', async () => {
+    const { server, post, token } = await start();
+    try {
+      expect((await post(token)).status).toBe(501);
+    } finally {
+      server.close();
+    }
   });
 });
 

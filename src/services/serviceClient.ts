@@ -82,6 +82,12 @@ export class ServiceClient {
     };
   }
 
+  /** Deja de reconectar y cierra el WebSocket (al cerrar el programa). */
+  stop() {
+    this.stopped = true;
+    this.ws?.close();
+  }
+
   send(m: ClientMsg): boolean {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return false;
     this.ws.send(JSON.stringify(m));

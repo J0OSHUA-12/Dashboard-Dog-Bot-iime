@@ -91,7 +91,10 @@ export interface UiState {
   showLabels: boolean;
   showGhost: boolean;
   stepUs: number;
+  theme: Theme;
 }
+
+export type Theme = 'dark' | 'light';
 
 export interface LinkUi {
   serviceAvailable: boolean;
@@ -157,6 +160,7 @@ const DEFAULT_UI: UiState = {
   showLabels: true,
   showGhost: true,
   stepUs: 10,
+  theme: 'dark',
 };
 
 let evId = 1;
@@ -179,7 +183,10 @@ export interface AppState {
   ui: UiState;
   modelParams: ModelParams;
   calibrationActive: boolean;
+  /** El operador cerró el programa: la interfaz muestra la pantalla final. */
+  closed: boolean;
 
+  setClosed: (closed: boolean) => void;
   setMode: (m: Mode) => void;
   select: (j: JointId) => void;
   hover: (j: JointId | null) => void;
@@ -239,6 +246,9 @@ export const useApp = create<AppState>((set, get) => ({
   ui: { ...DEFAULT_UI, ...load<Partial<UiState>>('ui', {}) },
   modelParams: sanitizeModelParams(load<Partial<ModelParams>>('model', DEFAULT_MODEL_PARAMS)),
   calibrationActive: false,
+  closed: false,
+
+  setClosed: (closed) => set({ closed }),
 
   setMode: (m) => {
     if (m === get().mode) return;

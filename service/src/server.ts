@@ -29,6 +29,8 @@ export interface ServerDeps {
   sketches: SketchStore;
   detect: (refresh: boolean) => Promise<ToolsStatus>;
   log?: (msg: string) => void;
+  /** Cierre ordenado pedido desde la interfaz (botón «Cerrar»). */
+  onShutdown?: () => void;
 }
 
 const MIME: Record<string, string> = {
@@ -128,6 +130,14 @@ export function createServer(d: ServerDeps) {
       const b = (await readBody(req)) as Record<string, unknown>;
       const job = d.builds.upload(str(b.buildId, 'buildId'), str(b.contentHash, 'contentHash'), str(b.fqbn, 'fqbn'), str(b.port, 'port'));
       return sendJson(res, 200, { job });
+    }
+    if (p === '/api/shutdown' && method === 'POST') {
+      if (!d.onShutdown) return sendJson(res, 501, { error: 'Cierre remoto no disponible' });
+      if (d.builds.busyJob) return sendJson(res, 409, { error: 'Hay una compilación o carga en curso: espera a que termine antes de cerrar.' });
+      log('Cierre solicitado desde la interfaz.');
+      sendJson(res, 200, { ok: true });
+      setTimeout(() => d.onShutdown?.(), 150);
+      return;
     }
     if (p === '/api/tools/install' && method === 'POST') {
       const b = (await readBody(req)) as Record<string, unknown>;
