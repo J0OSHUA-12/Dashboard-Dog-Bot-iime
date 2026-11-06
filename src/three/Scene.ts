@@ -11,7 +11,7 @@ import { ModelParams } from './modelParams';
 export type ViewName = 'iso' | 'frontal' | 'lateral' | 'superior';
 
 const SCENE_THEME = {
-  dark: { bg: 0x111217, gridMain: 0x2c2f3a, gridSub: 0x1e2029 },
+  dark: { bg: 0x0b0d10, gridMain: 0x2c2f3a, gridSub: 0x1e2029 },
   light: { bg: 0xe9ecf1, gridMain: 0xbcc2cc, gridSub: 0xd3d7df },
 } as const;
 const BG = SCENE_THEME.dark.bg;

@@ -5,7 +5,8 @@ import { realDisplayUs, uid, useApp } from '../state/store';
 import { downloadText, pickFile, stamp } from '../state/persist';
 import { applyPose, canRunPhysically, startSequence, stopSequence } from '../services/player';
 import { confirmDialog, promptDialog, toast } from './Dialog';
-import { IDownload, IFolder, IPlay, IStop, ITrash } from './icons';
+import { IAlert, IDownload, IFolder, IPlay, IStop, ITrash } from './icons';
+import { HelpTip } from './Disclosure';
 
 function currentPose(): Pose {
   const s = useApp.getState();
@@ -145,8 +146,8 @@ export function PosesPanel() {
                   {playing && <span className="tag sim">{seq.phase === 'transicion' ? 'transición 1,5 s' : 'en curso'}</span>}
                 </div>
                 {mode === 'real' && !phys.ok && (
-                  <div className="hint" style={{ color: 'var(--warn)', marginTop: 4 }}>
-                    ⚠ {phys.motivo}
+                  <div className="hint warn-text" style={{ marginTop: 6 }}>
+                    <IAlert size={12} /> {phys.motivo}
                   </div>
                 )}
               </div>
@@ -156,7 +157,12 @@ export function PosesPanel() {
       </div>
 
       <div className="section">
-        <h4>Poses</h4>
+        <h4>
+          Poses
+          <HelpTip label="Poses y secuencias en robot real">
+            En robot real, las poses y secuencias exigen perfil calibrado en todas sus articulaciones, canales habilitados y confirmación. Cargar un perfil o una pose nunca ejecuta movimiento.
+          </HelpTip>
+        </h4>
         <div className="row" style={{ marginBottom: 8 }}>
           <button className="btn sm" onClick={savePose}>
             Guardar pose actual
@@ -232,9 +238,6 @@ export function PosesPanel() {
               </div>
             );
           })}
-        </div>
-        <div className="hint" style={{ marginTop: 8 }}>
-          En robot real, las poses y secuencias exigen perfil calibrado en todas sus articulaciones, canales habilitados y confirmación. Cargar un perfil o una pose nunca ejecuta movimiento.
         </div>
       </div>
     </div>

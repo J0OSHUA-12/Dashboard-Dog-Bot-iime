@@ -4,7 +4,8 @@ import { JointConfig, estimatedAngleDeg, getJoint, isCalibrated, jointEligibilit
 import { useApp } from '../state/store';
 import { disableJoint, enableJoint, requestReal } from '../services/robotLink';
 import { toast } from './Dialog';
-import { IPower } from './icons';
+import { IAlert, IPower } from './icons';
+import { HelpTip } from './Disclosure';
 import { createElement as h } from 'react';
 
 function ago(at: number | null): string {
@@ -103,7 +104,7 @@ const JointRow = memo(function JointRow({ id }: { id: JointId }) {
   const stepBy = (d: number) => set(value + d);
 
   return (
-    <div ref={ref} className={`joint ${selected ? 'selected' : ''}`} onClick={() => useApp.getState().select(id)} data-joint={id}>
+    <div ref={ref} className={`joint ${selected ? 'selected' : ''} ${enabled ? 'live' : ''}`} onClick={() => useApp.getState().select(id)} data-joint={id}>
       <div className="joint-top">
         <span className="joint-name">{JOINT_LABEL[cfg.joint.split('-')[1] as keyof typeof JOINT_LABEL]}</span>
         <ChannelBadge j={cfg} />
@@ -167,8 +168,8 @@ const JointRow = memo(function JointRow({ id }: { id: JointId }) {
       {real && (
         <div className="joint-row" onClick={(e) => e.stopPropagation()}>
           {!elig.ok ? (
-            <span className="hint" style={{ color: 'var(--warn)' }}>
-              ⚠ {elig.motivo}
+            <span className="hint warn-text">
+              <IAlert size={12} /> {elig.motivo}
             </span>
           ) : enabled ? (
             <button className="btn xs danger" onClick={() => disableJoint(id).catch((e) => toast((e as Error).message, 'error'))}>
@@ -219,31 +220,33 @@ export function JointControls() {
   const mode = useApp((s) => s.mode);
   return (
     <div className="legs">
-      <div className="row" style={{ justifyContent: 'space-between' }}>
-        <div className="row">
-          <span className="hint">Paso</span>
+      <div className="legs-toolbar">
+        <span className="hint">Paso</span>
+        <div className="seg compact" role="group" aria-label="Paso en µs">
           {[1, 5, 10, 25, 50].map((v) => (
-            <button key={v} className={`btn xs ${step === v ? 'active' : ''}`} onClick={() => setUi({ stepUs: v })}>
+            <button key={v} className={step === v ? 'on' : ''} onClick={() => setUi({ stepUs: v })} aria-pressed={step === v}>
               {v}
             </button>
           ))}
-          <span className="unit">µs</span>
         </div>
-        <button className="btn xs" onClick={() => useApp.getState().select('D1-inferior')} title="Canal 1: articulación inferior de D1 (prioritaria)">
+        <span className="unit">µs</span>
+        <span className="spacer" />
+        <button className="btn xs ghost" onClick={() => useApp.getState().select('D1-inferior')} title="Canal 1: articulación inferior de D1 (prioritaria)">
           Ir a canal 1
         </button>
       </div>
-      {mode === 'sim' ? (
-        <div className="note sim">Simulación: los sliders mueven sólo el modelo. Sin calibrar, el rango es la banda eléctrica 500–2500 µs, no un límite mecánico.</div>
-      ) : (
-        <div className="note warn">Robot real: los sliders envían consignas consolidadas (máx. ~16/s) sólo a canales armados y habilitados, dentro de los límites que también aplica el firmware.</div>
-      )}
+      <div className={`mode-line ${mode === 'sim' ? 'sim' : 'warn'}`}>
+        <span>{mode === 'sim' ? 'Simulación: los sliders mueven sólo el modelo.' : 'Robot real: sólo canales armados y habilitados.'}</span>
+        <HelpTip label={mode === 'sim' ? 'Sliders en simulación' : 'Sliders en robot real'}>
+          {mode === 'sim'
+            ? 'Sin calibrar, el rango es la banda eléctrica 500–2500 µs, no un límite mecánico.'
+            : 'Los sliders envían consignas consolidadas (máx. ~16/s) sólo a canales armados y habilitados, dentro de los límites que también aplica el firmware.'}{' '}
+          Orden de filas: {JOINT_KINDS.map((k) => JOINT_LABEL[k]).join(' / ')}. Selecciona en la lista o haciendo clic sobre la pieza en el 3D.
+        </HelpTip>
+      </div>
       {LEGS.map((l) => (
         <LegCard key={l} leg={l} />
       ))}
-      <div className="hint" style={{ padding: '2px 4px 8px' }}>
-        Orden de filas: {JOINT_KINDS.map((k) => JOINT_LABEL[k]).join(' / ')}. Selecciona en la lista o haciendo clic sobre la pieza en el 3D.
-      </div>
     </div>
   );
 }

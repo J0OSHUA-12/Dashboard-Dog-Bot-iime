@@ -4,8 +4,8 @@ import { Sample } from '../../shared/telemetry';
 import { useApp } from '../state/store';
 
 const CHART_THEME = {
-  dark: { grid: '#262933', text: '#6f7583' },
-  light: { grid: '#e1e4ea', text: '#737986' },
+  dark: { grid: 'rgba(255,255,255,0.06)', text: '#8d93a2' },
+  light: { grid: 'rgba(20,22,28,0.08)', text: '#6b7180' },
 } as const;
 
 export interface ChartSeries {
@@ -79,7 +79,7 @@ export function LineChart({ series, windowMs = 60000, unit, yMin, yMax, gapMs = 
       g.strokeStyle = pal.grid;
       g.lineWidth = 1;
       g.fillStyle = pal.text;
-      g.font = '10px "JetBrains Mono", monospace';
+      g.font = '11px "JetBrains Mono", monospace';
       g.textAlign = 'right';
       g.textBaseline = 'middle';
       for (let i = 0; i <= 3; i++) {
