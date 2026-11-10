@@ -6,7 +6,7 @@ import { SerialPort } from 'serialport';
 import { SERVICE_PORT, SERVICE_VERSION, PortInfo, ToolsStatus } from '../../shared/serviceApi';
 import { findRepoRoot, makePaths } from './paths';
 import { makeSecurity, newToken } from './security';
-import { PortFactory, SerialManager, isLikelyArduino } from './serialManager';
+import { PortFactory, SerialManager, isLikelyArduino, usbChipName } from './serialManager';
 import { BuildManager } from './buildManager';
 import { SketchStore } from './sketches';
 import { cliCandidates, detectTools } from './arduinoCli';
@@ -35,6 +35,7 @@ const factory: PortFactory = {
       productId: p.productId ?? null,
       serialNumber: p.serialNumber ?? null,
       likelyArduino: isLikelyArduino(p.vendorId ?? null, p.manufacturer ?? null),
+      usbChip: usbChipName(p.vendorId ?? null, p.manufacturer ?? null),
     }));
   },
 };

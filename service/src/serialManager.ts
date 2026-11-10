@@ -43,6 +43,24 @@ export function isLikelyArduino(vendorId: string | null, manufacturer: string | 
   return v === '2341' || v === '2a03' || v === '1a86' || v === '0403' || /arduino|wch|ch340/i.test(manufacturer ?? '');
 }
 
+/** Chip/adaptador USB-serie según el vendorId. NO identifica la placa: un ESP32 con CH340 se ve igual que un clon de UNO. */
+export function usbChipName(vendorId: string | null, manufacturer: string | null): string | null {
+  switch ((vendorId ?? '').toLowerCase()) {
+    case '2341':
+    case '2a03':
+      return 'Arduino';
+    case '1a86':
+      return 'CH340/CH9102';
+    case '10c4':
+      return 'CP210x';
+    case '0403':
+      return 'FTDI';
+    case '303a':
+      return 'Espressif USB';
+  }
+  return /arduino/i.test(manufacturer ?? '') ? 'Arduino' : null;
+}
+
 export class SerialManager extends EventEmitter {
   status: SerialStatus = { state: 'cerrado', path: null, baud: null, error: null, diagnostic: null };
   private port: PortLike | null = null;

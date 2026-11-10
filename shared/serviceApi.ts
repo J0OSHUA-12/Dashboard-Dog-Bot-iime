@@ -14,6 +14,8 @@ export interface PortInfo {
   productId: string | null;
   serialNumber: string | null;
   likelyArduino: boolean;
+  /** Chip USB-serie deducido del vendorId (no identifica la placa). */
+  usbChip: string | null;
 }
 
 export type SerialState = 'cerrado' | 'abriendo' | 'abierto' | 'error' | 'liberado-para-carga';

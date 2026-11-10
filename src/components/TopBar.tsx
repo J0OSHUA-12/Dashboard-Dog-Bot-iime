@@ -82,7 +82,7 @@ export function TopBar({ editorOpen, onToggleEditor }: { editorOpen?: boolean; o
             {link.ports.map((p) => (
               <option key={p.path} value={p.path}>
                 {p.path}
-                {p.likelyArduino ? ' · Arduino' : ''}
+                {p.usbChip ? ` · ${p.usbChip}` : ''}
               </option>
             ))}
           </select>
