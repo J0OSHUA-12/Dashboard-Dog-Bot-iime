@@ -128,7 +128,7 @@ function Telemetry() {
               <LineChart series={bankSeries} unit="V" yMin={6.9} yMax={7.1} />
             </>
           ) : (
-            <div className="empty">No hay sensor de tensión conectado al Arduino. Consulta las mediciones manuales (pestaña Mediciones).</div>
+            <div className="empty">No hay sensor de tensión conectado a la placa. Consulta las mediciones manuales (pestaña Mediciones).</div>
           )}
         </div>
         <div className="chart primary">
@@ -308,7 +308,7 @@ function SerialMonitor() {
           {link.serial.diagnostic ? ` · ${link.serial.diagnostic}` : ''}
         </span>
         <span className="spacer" />
-        <label className="chk" title="Velocidad usada al conectar: 115200 para DogBotDashboard, 9600 para los sketches históricos">
+        <label className="chk" title="Velocidad usada al conectar: 115200 para DogBotDashboard (UNO y ESP32), 9600 para los sketches históricos">
           Baudios
           <select className="field mono" style={{ width: 84, height: 24 }} value={link.baud} disabled={open} onChange={(e) => useApp.getState().setLink({ baud: Number(e.target.value) })}>
             {[115200, 57600, 9600].map((b) => (
@@ -371,7 +371,7 @@ const EMPTY_TEST = (): TestRecord => ({
   montaje: 'suspendido en soporte',
   carga: 'sin carga (patas en el aire)',
   alimentacion: 'LiPo 3S → regulador delantero ~7 V',
-  sketch: 'DogBotDashboard 0.1.0',
+  sketch: `DogBotDashboard ${useApp.getState().link.firmware?.fw ?? '0.2.0'}${useApp.getState().link.firmware?.mcu ? ` (${useApp.getState().link.firmware?.mcu})` : ''}`,
   perfil: useApp.getState().profile.nombre,
   medicion: '',
   instrumento: '',

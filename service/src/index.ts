@@ -6,7 +6,7 @@ import { SerialPort } from 'serialport';
 import { SERVICE_PORT, SERVICE_VERSION, PortInfo, ToolsStatus } from '../../shared/serviceApi';
 import { findRepoRoot, makePaths } from './paths';
 import { makeSecurity, newToken } from './security';
-import { PortFactory, SerialManager, isLikelyArduino, usbChipName } from './serialManager';
+import { PortFactory, SerialManager, boardHint } from './serialManager';
 import { BuildManager } from './buildManager';
 import { SketchStore } from './sketches';
 import { cliCandidates, detectTools } from './arduinoCli';
@@ -28,15 +28,18 @@ const factory: PortFactory = {
   create: (path, baud) => new SerialPort({ path, baudRate: baud, autoOpen: false }),
   async list(): Promise<PortInfo[]> {
     const ports = await SerialPort.list();
-    return ports.map((p) => ({
-      path: p.path,
-      manufacturer: p.manufacturer ?? null,
-      vendorId: p.vendorId ?? null,
-      productId: p.productId ?? null,
-      serialNumber: p.serialNumber ?? null,
-      likelyArduino: isLikelyArduino(p.vendorId ?? null, p.manufacturer ?? null),
-      usbChip: usbChipName(p.vendorId ?? null, p.manufacturer ?? null),
-    }));
+    return ports.map((p) => {
+      const hint = boardHint(p.vendorId ?? null, p.manufacturer ?? null);
+      return {
+        path: p.path,
+        manufacturer: p.manufacturer ?? null,
+        vendorId: p.vendorId ?? null,
+        productId: p.productId ?? null,
+        serialNumber: p.serialNumber ?? null,
+        likelyBoard: hint !== null,
+        hint,
+      };
+    });
   },
 };
 
@@ -96,7 +99,8 @@ server.listen(port, '127.0.0.1', () => {
   console.log('  Iniciar la app NO mueve el robot ni carga firmware.');
   console.log('');
   void detect(true).then((t) => {
-    console.log(`  Arduino CLI: ${t.cli.detail} · ${t.core.detail} · ${t.lib.detail}`);
+    console.log(`  Arduino CLI: ${t.cli.detail} · ${t.lib.detail}`);
+    for (const c of t.cores) console.log(`    ${c.detail}`);
   });
 });
 

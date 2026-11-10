@@ -6,11 +6,12 @@ import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { BuildManager, JobError, hashBuild } from '../service/src/buildManager';
 import { CommandRunner, RunResult } from '../service/src/runner';
-import { SerialManager, PortLike, diagnoseOpenError } from '../service/src/serialManager';
+import { SerialManager, PortLike, boardHint, diagnoseOpenError } from '../service/src/serialManager';
 import { SketchStore } from '../service/src/sketches';
 import { makePaths, safeJoin } from '../service/src/paths';
 import { makeSecurity, hostAllowed, originAllowed, tokenMatches } from '../service/src/security';
-import { detectTools, parseCoreVersion, parseLibVersion, parseSizes, uploadArgs, diagnoseUpload } from '../service/src/arduinoCli';
+import { binaryName, coreArgs, detectTools, diagnoseCompile, parseCoreVersion, parseLibVersion, parseSizes, uploadArgs, diagnoseUpload } from '../service/src/arduinoCli';
+import { BOARDS, CORES, boardByFqbn, coreById, familyOfMcu } from '../shared/boards';
 import { isValidSketchName, TOKEN_HEADER } from '../shared/serviceApi';
 import { createServer } from '../service/src/server';
 import type { AddressInfo } from 'node:net';
@@ -24,6 +25,10 @@ class FakeCli implements CommandRunner {
   calls: { exe: string; args: string[] }[] = [];
   compileFails = false;
   uploadFails = false;
+  /** Core ESP32 sin instalar: compile falla como lo hace Arduino CLI. */
+  esp32CoreMissing = false;
+  /** Cores que `core list` informa como instalados. */
+  installedCores: string[] = [];
   async run(exe: string, args: string[]): Promise<RunResult> {
     this.calls.push({ exe, args });
     if (args[0] === 'compile') {
@@ -32,6 +37,19 @@ class FakeCli implements CommandRunner {
       const sketchDir = args[args.length - 1];
       const name = path.basename(sketchDir);
       fs.mkdirSync(out, { recursive: true });
+      if (args[args.indexOf('--fqbn') + 1].startsWith('esp32:')) {
+        if (this.esp32CoreMissing) return { code: 1, stdout: '', stderr: 'Error during build: Platform \'esp32:esp32\' not found: platform not installed', spawnError: null, timedOut: false };
+        // El core del ESP32 deja .bin (más el cargador de arranque y la tabla de particiones), no .hex.
+        for (const f of ['.ino.bin', '.ino.bootloader.bin', '.ino.partitions.bin']) fs.writeFileSync(path.join(out, name + f), 'bin');
+        return {
+          code: 0,
+          stdout:
+            'Sketch uses 289621 bytes (22%) of program storage space. Maximum is 1310720 bytes.\nGlobal variables use 21604 bytes (6%) of dynamic memory, leaving 306076 bytes for local variables. Maximum is 327680 bytes.\n',
+          stderr: '',
+          spawnError: null,
+          timedOut: false,
+        };
+      }
       fs.writeFileSync(path.join(out, `${name}.ino.hex`), ':00000001FF\n');
       return {
         code: 0,
@@ -41,6 +59,12 @@ class FakeCli implements CommandRunner {
         spawnError: null,
         timedOut: false,
       };
+    }
+    if (args[0] === 'upload' && this.uploadFails && args[args.indexOf('--fqbn') + 1].startsWith('esp32:')) {
+      return { code: 2, stdout: 'Connecting......................................', stderr: 'A fatal error occurred: Failed to connect to ESP32: Wrong boot mode detected (0x13)! The chip needs to be in download mode.', spawnError: null, timedOut: false };
+    }
+    if (args[0] === 'core' && args[1] === 'list') {
+      return { code: 0, stdout: JSON.stringify({ platforms: this.installedCores.map((id) => ({ id, installed_version: '9.9.9' })) }), stderr: '', spawnError: null, timedOut: false };
     }
     if (args[0] === 'upload') {
       if (this.uploadFails) return { code: 1, stdout: '', stderr: 'avrdude: ser_open(): can\'t open device "\\\\.\\COM3": Access is denied.', spawnError: null, timedOut: false };
@@ -163,6 +187,118 @@ describe('BuildManager (Arduino CLI simulado)', () => {
   });
 });
 
+describe('ESP32 (Arduino CLI simulado)', () => {
+  const ESP = 'esp32:esp32:esp32';
+
+  it('el catálogo incluye UNO y ESP32, cada uno con su core y su tipo de binario', () => {
+    expect(BOARDS.map((b) => b.fqbn)).toEqual(expect.arrayContaining(['arduino:avr:uno', ESP]));
+    expect(boardByFqbn(ESP)).toMatchObject({ family: 'esp32', core: 'esp32:esp32', short: 'ESP32' });
+    expect(coreById('esp32:esp32')).toMatchObject({ binExt: '.bin', heavy: true });
+    expect(binaryName('S', ESP)).toBe('S.ino.bin');
+    expect(binaryName('S', 'arduino:avr:uno')).toBe('S.ino.hex');
+    expect(familyOfMcu('ESP32')).toBe('esp32');
+    expect(familyOfMcu('UNO')).toBe('avr');
+    expect(familyOfMcu(null)).toBeNull();
+    for (const b of BOARDS) expect(CORES.some((c) => c.id === b.core)).toBe(true);
+  });
+
+  it('compila para ESP32: binario .bin, tamaños del ESP32 y hash ligado a la placa', async () => {
+    const cli = new FakeCli();
+    const { bm } = makeBM(cli);
+    const { job, build } = bm.compile('DogBotDashboard', ESP, 'v1');
+    await waitJob(bm, job.id);
+    const rec = bm.builds.get(build.id)!;
+    expect(rec.state).toBe('ok');
+    expect(rec).toMatchObject({ flashBytes: 289621, flashMax: 1310720, ramBytes: 21604, ramMax: 327680 });
+    expect(cli.calls[0].args.slice(0, 3)).toEqual(['compile', '--fqbn', ESP]);
+    expect(fs.existsSync(path.join(rec.outDir, 'DogBotDashboard.ino.bin'))).toBe(true);
+    expect(rec.contentHash).not.toBe(hashBuild('DogBotDashboard', 'arduino:avr:uno', 'v1'));
+  });
+
+  it('un binario compilado para UNO no se sube como ESP32 (ni al revés)', async () => {
+    const cli = new FakeCli();
+    const { bm } = makeBM(cli);
+    const uno = bm.compile('A', 'arduino:avr:uno', 'v1');
+    await waitJob(bm, uno.job.id);
+    expect(() => bm.upload(uno.build.id, hashBuild('A', 'arduino:avr:uno', 'v1'), ESP, 'COM4')).toThrow(/placa/);
+    expect(() => bm.upload(uno.build.id, hashBuild('A', ESP, 'v1'), ESP, 'COM4')).toThrow(/OBSOLETA/);
+    const esp = bm.compile('A', ESP, 'v1');
+    await waitJob(bm, esp.job.id);
+    expect(() => bm.upload(esp.build.id, hashBuild('A', ESP, 'v1'), 'arduino:avr:uno', 'COM4')).toThrow(/placa/);
+    expect(cli.calls.some((c) => c.args[0] === 'upload')).toBe(false);
+  });
+
+  it('sube al ESP32 sólo su binario, con su FQBN, liberando y reabriendo el COM', async () => {
+    const cli = new FakeCli();
+    const ev: string[] = [];
+    const { bm } = makeBM(cli, ev);
+    const { job, build } = bm.compile('A', ESP, 'v1');
+    await waitJob(bm, job.id);
+    const up = bm.upload(build.id, hashBuild('A', ESP, 'v1'), ESP, 'COM4');
+    await waitJob(bm, up.id);
+    expect(up.state).toBe('ok');
+    const u = cli.calls.find((c) => c.args[0] === 'upload')!;
+    expect(u.args.slice(0, 6)).toEqual(['upload', '-p', 'COM4', '--fqbn', ESP, '--input-dir']);
+    expect(ev).toEqual(['release', 'reopen']);
+  });
+
+  it('si el ESP32 no entra en modo de carga, explica el botón BOOT', async () => {
+    const cli = new FakeCli();
+    cli.uploadFails = true;
+    const { bm } = makeBM(cli);
+    const { job, build } = bm.compile('A', ESP, 'v1');
+    await waitJob(bm, job.id);
+    const up = bm.upload(build.id, hashBuild('A', ESP, 'v1'), ESP, 'COM4');
+    await waitJob(bm, up.id);
+    expect(up.state).toBe('error');
+    expect(up.summary).toMatch(/BOOT/);
+    expect(diagnoseUpload('A fatal error occurred: Failed to connect to ESP32: Timed out waiting for packet header')).toMatch(/BOOT/);
+    expect(diagnoseUpload('A fatal error occurred: MD5 of file does not match data in flash!', boardByFqbn(ESP))).toMatch(/esptool/);
+    expect(diagnoseUpload('avrdude: stk500_getsync() attempt 1 of 10: not in sync')).not.toMatch(/BOOT/);
+  });
+
+  it('si falta el core del ESP32, la compilación falla diciendo cómo instalarlo', async () => {
+    const cli = new FakeCli();
+    cli.esp32CoreMissing = true;
+    const { bm } = makeBM(cli);
+    const { job, build } = bm.compile('A', ESP, 'v1');
+    await waitJob(bm, job.id);
+    expect(bm.builds.get(build.id)!.state).toBe('error');
+    expect(job.summary).toMatch(/Falta el core esp32:esp32/);
+    expect(diagnoseCompile("error: 'pwmm' was not declared in this scope", boardByFqbn(ESP))).toBeNull();
+    expect(diagnoseCompile('fatal error: Adafruit_PWMServoDriver.h: No such file or directory', boardByFqbn(ESP))).toMatch(/biblioteca/);
+  });
+
+  it('instala cada core con argumentos fijos; el del ESP32 lleva su índice adicional', async () => {
+    expect(coreArgs('install', coreById('arduino:avr')!)).toEqual(['core', 'install', 'arduino:avr']);
+    expect(coreArgs('install', coreById('esp32:esp32')!)).toEqual(['core', 'install', 'esp32:esp32', '--additional-urls', 'https://espressif.github.io/arduino-esp32/package_esp32_index.json']);
+    expect(coreArgs('update-index', coreById('arduino:avr')!)).toEqual(['core', 'update-index']);
+    const cli = new FakeCli();
+    const { bm } = makeBM(cli);
+    const job = bm.install('install-core', 'esp32:esp32');
+    await waitJob(bm, job.id);
+    expect(job.title).toBe('Instalar core esp32:esp32');
+    expect(cli.calls[0].args.slice(0, 3)).toEqual(['core', 'install', 'esp32:esp32']);
+    expect(() => bm.install('install-core', 'evil:core --config-file x')).toThrow(/no permitido/);
+    const def = bm.install('install-core');
+    await waitJob(bm, def.id);
+    expect(cli.calls[1].args).toEqual(['core', 'install', 'arduino:avr']);
+  });
+
+  it('el diagnóstico informa cada core por separado', async () => {
+    const cli = new FakeCli();
+    cli.installedCores = ['arduino:avr'];
+    const st = await detectTools(cli, ['arduino-cli']);
+    expect(st.cores.map((c) => [c.id, c.ok])).toEqual([
+      ['arduino:avr', true],
+      ['esp32:esp32', false],
+    ]);
+    expect(st.cores[1].detail).toMatch(/Falta el core esp32:esp32/);
+    cli.installedCores = ['arduino:avr', 'esp32:esp32'];
+    expect((await detectTools(cli, ['arduino-cli'])).cores.every((c) => c.ok)).toBe(true);
+  });
+});
+
 describe('detección de herramientas', () => {
   it('interpreta formatos 1.x y 0.x de Arduino CLI', () => {
     expect(parseCoreVersion({ platforms: [{ id: 'arduino:avr', installed_version: '1.8.6' }] })).toBe('1.8.6');
@@ -184,6 +320,11 @@ describe('detección de herramientas', () => {
 class FakePort implements PortLike {
   isOpen = false;
   written: string[] = [];
+  lines: { dtr?: boolean; rts?: boolean }[] = [];
+  set(opts: { dtr?: boolean; rts?: boolean }, cb?: (err: Error | null) => void) {
+    this.lines.push(opts);
+    cb?.(null);
+  }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   handlers: Record<string, ((...a: any[]) => void)[]> = {};
   failOpen: string | null = null;
@@ -222,6 +363,31 @@ describe('SerialManager (puerto simulado)', () => {
     await expect(sm.open('COM3', 115200)).rejects.toThrow();
     expect(sm.status.diagnostic).toMatch(/Monitor Serie/);
     expect(diagnoseOpenError('File not found')).toMatch(/no existe/);
+  });
+
+  it('al abrir deja DTR y RTS iguales para que un ESP32 no quede en modo de carga', async () => {
+    const port = new FakePort();
+    const sm = new SerialManager({ create: () => port, list: async () => [] });
+    await sm.open('COM4', 115200);
+    expect(port.lines).toEqual([{ dtr: true, rts: true }]);
+    expect(sm.status.state).toBe('abierto');
+    // Un puerto sin líneas de control (o que falla al fijarlas) se abre igual.
+    const bare = new FakePort() as PortLike;
+    bare.set = () => {
+      throw new Error('no soportado');
+    };
+    const sm2 = new SerialManager({ create: () => bare, list: async () => [] });
+    await sm2.open('COM5', 115200);
+    expect(sm2.status.state).toBe('abierto');
+  });
+
+  it('da una pista de la placa según el adaptador USB, sin afirmar de más', () => {
+    expect(boardHint('2341', 'Arduino LLC')).toBe('Arduino');
+    expect(boardHint('303A', 'Espressif')).toBe('ESP32');
+    expect(boardHint('10C4', 'Silicon Labs')).toBe('CP210x');
+    expect(boardHint('1a86', 'wch.cn')).toBe('CH340');
+    expect(boardHint(null, null)).toBeNull();
+    expect(boardHint('8087', 'Intel')).toBeNull();
   });
 
   it('valida puerto y velocidad', async () => {

@@ -24,6 +24,48 @@ inline uint32_t micros() { return g_millis * 1000u + g_micros_extra; }
 inline int analogRead(uint8_t pin) { return (pin * 37 + 11) & 1023; }
 inline void delay(uint32_t ms) { g_millis += ms; }
 
+#if defined(ESP32)
+// Variante ESP32 del arnés (g++ -DESP32): sólo lo que el firmware usa del
+// core de Espressif. Valores fijos; no simula el chip.
+
+// La biblioteca C del ESP32 (newlib, <sys/syslimits.h>) define estas macros
+// para cualquier sketch; la del AVR no. Se reproducen aquí para que un nombre
+// del firmware que choque con ellas falle al compilar el arnés y no en la
+// placa. Ya pasó: el firmware 0.1.0 llamaba LINE_MAX a una constante.
+#undef ARG_MAX
+#undef CHILD_MAX
+#undef LINK_MAX
+#undef MAX_CANON
+#undef MAX_INPUT
+#undef NAME_MAX
+#undef NGROUPS_MAX
+#undef OPEN_MAX
+#undef PATH_MAX
+#undef PIPE_BUF
+#undef IOV_MAX
+#undef LINE_MAX
+#undef RE_DUP_MAX
+#define ARG_MAX 65536
+#define CHILD_MAX 40
+#define LINK_MAX 32767
+#define MAX_CANON 255
+#define MAX_INPUT 255
+#define NAME_MAX 255
+#define NGROUPS_MAX 16
+#define OPEN_MAX 64
+#define PATH_MAX 1024
+#define PIPE_BUF 512
+#define IOV_MAX 1024
+#define LINE_MAX 2048
+#define RE_DUP_MAX 255
+class EspClass {
+ public:
+  uint32_t getFreeHeap() { return 287654; }
+};
+extern EspClass ESP;
+inline long random(long lo, long hi) { return lo + (long)((g_millis * 7919u + 0x5A17u) % (uint32_t)(hi - lo)); }
+#endif
+
 class MockSerial {
  public:
   std::deque<uint8_t> rx;

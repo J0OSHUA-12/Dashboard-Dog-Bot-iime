@@ -1,6 +1,8 @@
 // Arnés para ejecutar DogBotDashboard.ino en una PC (pruebas de software).
 //
 // Compilar:  g++ -std=c++17 -I firmware/pruebas_host firmware/pruebas_host/harness.cpp -o harness
+//   Variante UNO:   añade -DARDUINO_AVR_UNO
+//   Variante ESP32: añade -DESP32
 // Uso (stdin, una orden por línea):
 //   > texto        envía "texto\n" al firmware y ejecuta loop()
 //   ~ 41 FF 0A     envía bytes hexadecimales crudos (datos corruptos)
@@ -15,6 +17,9 @@ uint32_t g_millis = 0;
 uint32_t g_micros_extra = 0;
 MockSerial Serial;
 TwoWire Wire;
+#if defined(ESP32)
+EspClass ESP;
+#endif
 
 #include "../DogBotDashboard/DogBotDashboard.ino"
 
@@ -43,6 +48,7 @@ int main() {
   setup();
   flushOut();
   std::cout << "# allOffWrites=" << Wire.allOffWrites << "\n";
+  std::cout << "# i2c sda=" << Wire.sda << " scl=" << Wire.scl << "\n";
   std::string cmd;
   while (std::getline(std::cin, cmd)) {
     if (cmd.empty()) continue;

@@ -10,8 +10,13 @@ carga reales mediante Arduino CLI, telemetría honesta y registro de ensayos.
 >
 > **Estado de esta aplicación (v0.1.0):** funciona en **modo simulación**. El servicio
 > local, el firmware nuevo y el modo ROBOT REAL están implementados y probados **solo en
-> software**. Faltan las pruebas físicas: USB/COM en Windows, carga en el UNO y movimiento real.
-> Ver [docs/PRUEBAS.md](docs/PRUEBAS.md).
+> software**. Faltan las pruebas físicas: USB/COM en Windows, carga en la placa y movimiento
+> real. Ver [docs/PRUEBAS.md](docs/PRUEBAS.md).
+>
+> **Placas (firmware 0.2.0):** el robot se puede controlar con un **Arduino UNO** o con un
+> **ESP32** (DevKit, WROOM-32), con el mismo firmware y el mismo protocolo. La variante ESP32
+> está probada solo en software y **aún no se ha compilado con el core real de Espressif**.
+> Ver [docs/ESP32.md](docs/ESP32.md).
 
 ![Dog Bot Control en simulación, 1920×1080](docs/capturas/escritorio-1920.jpg)
 
@@ -38,7 +43,8 @@ modelo). Encima flotan paneles de cristal:
 
 1. Instala **Node.js 22 LTS o 24 LTS** desde <https://nodejs.org>.
 2. Para compilar y subir sketches, instala **Arduino IDE 2**, que ya incluye `arduino-cli`.
-   También sirve `arduino-cli` por separado.
+   También sirve `arduino-cli` por separado. Si usas un ESP32, hace falta además su core
+   (`esp32:esp32`), que se instala desde el propio dashboard.
 3. Descarga este repositorio (rama `ccr-c852bcef-htj9dj`) en una carpeta. La ruta puede
    tener espacios.
 4. Doble clic en **`INSTALAR_DOGBOT.bat`**. Solo hace falta la primera vez y después de cada
@@ -56,8 +62,9 @@ La guía detallada, con la primera conexión al robot, está en
 | Interfaz (React + TypeScript + Three.js + CodeMirror) | `src/` | Funcional en simulación; revisada a 1366×768, 1920×1080 y 390×844 |
 | Núcleo compartido: articulaciones, perfiles, protocolo, cliente, secuencias, telemetría | `shared/` | Con pruebas automáticas |
 | Servicio local Node.js: COM, Arduino CLI, sketches | `service/` | Probado con puerto virtual y Arduino CLI simulado; **pendiente en Windows** |
-| Firmware nuevo `DogBotDashboard.ino` (protocolo DOGBOT v1) | `firmware/DogBotDashboard/` | Compila para UNO con avr‑gcc (42 % flash, 41 % RAM estática); **pendiente de validación física** |
-| Arnés para ejecutar el firmware en la PC | `firmware/pruebas_host/` | Pruebas de software del firmware real |
+| Firmware nuevo `DogBotDashboard.ino` (protocolo DOGBOT v1) para **UNO y ESP32** | `firmware/DogBotDashboard/` | Compila para UNO con avr‑gcc (43 % flash, 41 % RAM estática). Variante ESP32 sin compilar con su core real. **Pendiente de validación física** |
+| Catálogo de placas (UNO, ESP32) | `shared/boards.ts` | Lista blanca de placas, core y tipo de binario de cada una |
+| Arnés para ejecutar el firmware en la PC | `firmware/pruebas_host/` | Pruebas de software del firmware real, en sus variantes UNO y ESP32 |
 | Perfil inicial de calibración | `perfiles/perfil_inicial_v1.json` | 6 canales probados, **sin calibrar**; posteriores sin canal |
 | Documentación de entrega original (sin cambios) | `DOGBOT_CLAUDE_CODE/` | Contexto, prompt, 3 sketches históricos y fotos |
 | Mis sketches (editor) | `sketches/` | Copias y sketches nuevos |
@@ -70,6 +77,7 @@ La guía detallada, con la primera conexión al robot, está en
 - [Estados, modos y acciones de parada](docs/ESTADOS_Y_SEGURIDAD.md)
 - [Telemetría y registros](docs/TELEMETRIA.md)
 - [Compilación y carga de firmware](docs/CARGA_FIRMWARE.md)
+- [**Dog Bot con ESP32**: cableado, core, carga y diferencias con el UNO](docs/ESP32.md)
 - [Pruebas hechas y pruebas físicas pendientes](docs/PRUEBAS.md)
 - [Decisiones, estado y próximos pasos (4 patas, Raspberry Pi 4)](docs/DECISIONES_Y_ESTADO.md)
 - [**Plan de trabajo · Fase 1: pararse y caminar con Arduino**](docs/PLAN_FASE1.md) · [Plantilla de medidas del robot](docs/MEDICIONES_ROBOT.md)
@@ -81,7 +89,7 @@ Navegador (127.0.0.1:5178) ── HTTP + WebSocket con token ──> Servicio lo
   React · Three.js · CodeMirror                              ├─ serialport (único dueño del COM)
   estado (zustand) · cliente de protocolo                     ├─ arduino-cli (argumentos estructurados, sin shell)
                                                               └─ sketches/ (rutas validadas)
-Servicio ── USB/COM 115200 ──> Arduino UNO (DogBotDashboard.ino) ── I²C ──> PCA9685 0x40 ── PWM 50 Hz ──> servos
+Servicio ── USB/COM 115200 ──> Arduino UNO o ESP32 (DogBotDashboard.ino) ── I²C ──> PCA9685 0x40 ── PWM 50 Hz ──> servos
 ```
 
 Una sola solución: interfaz web local servida por un servicio Node.js en Windows. La
@@ -94,7 +102,7 @@ controles, el editor y las gráficas sintéticas rotuladas. Ver
 ```bash
 npm ci            # dependencias exactas (package-lock.json)
 npm run dev       # servicio (5178) + Vite con recarga (5173)
-npm test          # 66 pruebas (vitest)
+npm test          # 93 pruebas (vitest)
 npm run typecheck
 npm run build     # dist/web + dist/service
 npm start         # sirve la app compilada en http://127.0.0.1:5178

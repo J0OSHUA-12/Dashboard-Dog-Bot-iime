@@ -3,9 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProtocolClient } from '../shared/protocolClient';
 import { FakeFirmware } from './support/fakeFirmware';
 
-function setup(opts: { proto?: number; silent?: boolean } = {}) {
+function setup(opts: { proto?: number; silent?: boolean; mcu?: string | null; fw?: string } = {}) {
   const fw = new FakeFirmware();
   if (opts.proto) fw.proto = opts.proto;
+  if (opts.mcu !== undefined) fw.mcu = opts.mcu;
+  if (opts.fw) fw.fw = opts.fw;
   if (opts.silent) fw.silent = true;
   const states: string[] = [];
   const resets: string[] = [];
@@ -41,8 +43,39 @@ describe('ProtocolClient (firmware simulado)', () => {
     client.attach();
     await flushAll(120);
     expect(client.state).toBe('desarmado');
-    expect(client.firmware?.fw).toBe('0.1.0');
+    expect(client.firmware?.fw).toBe('0.2.0');
+    expect(client.firmware?.mcu).toBe('UNO');
     expect(fw.received.map((r) => r.line.split(' ')[1])).toEqual(['HELLO', 'STATUS']);
+  });
+
+  it('un ESP32 con el mismo protocolo se identifica igual y sólo cambia la placa informada', async () => {
+    const { fw, client } = setup({ mcu: 'ESP32' });
+    client.attach();
+    await flushAll(120);
+    expect(client.state).toBe('desarmado');
+    expect(client.firmware).toMatchObject({ dev: 'DOGBOT', proto: 1, mcu: 'ESP32', freeRam: 287654 });
+    expect(fw.received.map((r) => r.line.split(' ')[1])).toEqual(['HELLO', 'STATUS']);
+  });
+
+  it('firmware 0.1.0 (sin mcu=) sigue siendo compatible: placa desconocida', async () => {
+    const { client } = setup({ mcu: null, fw: '0.1.0' });
+    client.attach();
+    await flushAll(120);
+    expect(client.state).toBe('desarmado');
+    expect(client.firmware?.fw).toBe('0.1.0');
+    expect(client.firmware?.mcu).toBeNull();
+  });
+
+  it('el texto del cargador de arranque del ESP32 antes de BOOT no confunde al cliente', async () => {
+    const { fw, client, states } = setup({ mcu: 'ESP32' });
+    client.attach();
+    for (const l of ['ets Jul 29 2019 12:21:46', '', 'rst:0x1 (POWERON_RESET),boot:0x13 (SPI_FAST_FLASH_BOOT)', 'mode:DIO, clock div:1', 'load:0x3fff0030,len:4832', 'entry 0x400805f0', '']) client.handleLine(l);
+    expect(client.state).toBe('identificando');
+    fw.reboot('E5F6');
+    await flushAll(20);
+    expect(client.state).toBe('desarmado');
+    expect(client.firmware).toMatchObject({ boot: 'E5F6', mcu: 'ESP32' });
+    expect(states).not.toContain('firmware-desconocido');
   });
 
   it('firmware sin protocolo => desconocido, controles bloqueados', async () => {

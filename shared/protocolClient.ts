@@ -61,6 +61,8 @@ export interface FirmwareInfo {
   channels: number;
   calStep: number;
   freeRam: number | null;
+  /** Placa informada por el firmware (UNO, ESP32…). null en firmware 0.1.x, que no la informa. */
+  mcu: string | null;
 }
 
 export type LogLevel = 'info' | 'aviso' | 'error' | 'tx' | 'rx';
@@ -154,7 +156,10 @@ export class ProtocolClient {
 
   // ------------------------------------------------------------ ciclo de vida
 
-  /** Puerto abierto. La placa puede reiniciarse (DTR); se espera BOOT o se identifica tras un plazo. */
+  /**
+   * Puerto abierto. La placa puede reiniciarse (el UNO lo hace por DTR; un ESP32
+   * a veces no): se espera BOOT o se identifica tras un plazo.
+   */
   attach(): void {
     this.resetSession('Puerto abierto');
     this.setState('identificando', 'Esperando arranque de la placa');
@@ -339,6 +344,7 @@ export class ProtocolClient {
           channels: Number(f.ch),
           calStep: Number(f.calstep),
           freeRam: f.fr !== undefined && Number(f.fr) >= 0 ? Number(f.fr) : null,
+          mcu: f.mcu && /^[A-Za-z0-9_-]{1,16}$/.test(f.mcu) ? f.mcu : null,
         };
         const prevBoot = this.firmware?.boot;
         if (prevBoot && prevBoot !== info.boot) {

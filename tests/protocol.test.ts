@@ -26,6 +26,7 @@ describe('interpretación de líneas del firmware', () => {
     expect(parseFirmwareLine('ER 9 RANGE fuera de limites')).toMatchObject({ kind: 'err', id: 9, code: 'RANGE', detail: 'fuera de limites' });
     expect(parseFirmwareLine('EV LINKLOST llp=HOLD')).toMatchObject({ kind: 'event', name: 'LINKLOST', fields: { llp: 'HOLD' } });
     expect(parseFirmwareLine('BOOT DOGBOT proto=1 fw=0.1.0 boot=93AF')).toMatchObject({ kind: 'boot', proto: 1, boot: '93AF' });
+    expect(parseFirmwareLine('OK 3 HELLO dev=DOGBOT proto=1 fw=0.2.0 boot=6F80 ses=4 ch=12 calstep=50 fr=287654 mcu=ESP32')).toMatchObject({ kind: 'ok', fields: { fr: '287654', mcu: 'ESP32' } });
     expect(parseFirmwareLine('PW 1600 0:1500 1:1562')).toMatchObject({ kind: 'pulses', fwMillis: 1600, pulses: { 0: 1500, 1: 1562 } });
   });
   it('trata la salida de sketches históricos como texto', () => {

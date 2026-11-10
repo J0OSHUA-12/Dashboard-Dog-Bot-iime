@@ -93,7 +93,7 @@ export function initService() {
       case 'ports': {
         st().setLink({ ports: m.ports });
         if (!st().link.port && m.ports.length) {
-          const p = m.ports.find((x) => x.likelyArduino) ?? m.ports[0];
+          const p = m.ports.find((x) => x.likelyBoard) ?? m.ports[0];
           st().setLink({ port: p.path });
         }
         break;

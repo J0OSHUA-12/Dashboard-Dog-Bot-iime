@@ -3,10 +3,12 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { REQUIRED_CORE, REQUIRED_LIB, ToolsStatus } from '../../shared/serviceApi';
+import { BOARDS, BoardDef, CORES, CoreDef, boardByFqbn, coreById } from '../../shared/boards';
+import { REQUIRED_LIB, ToolsStatus } from '../../shared/serviceApi';
 import { CommandRunner } from './runner';
 
-export const ALLOWED_FQBN = ['arduino:avr:uno', 'arduino:avr:nano', 'arduino:avr:mega:cpu=atmega2560'];
+/** Lista blanca de placas: solo las del catálogo compartido. */
+export const ALLOWED_FQBN = BOARDS.map((b) => b.fqbn);
 
 /** Rutas candidatas del ejecutable (Arduino IDE 2 incluye arduino-cli). */
 export function cliCandidates(env: NodeJS.ProcessEnv = process.env, platform = process.platform): string[] {
@@ -40,7 +42,7 @@ export function parseVersion(json: unknown): string | null {
 }
 
 /** Soporta formato 1.x ({platforms:[...]}) y 0.x ([...]). */
-export function parseCoreVersion(json: unknown, coreId = REQUIRED_CORE): string | null {
+export function parseCoreVersion(json: unknown, coreId = CORES[0].id): string | null {
   const arr = Array.isArray(json) ? json : (json as { platforms?: unknown[] } | null)?.platforms;
   if (!Array.isArray(arr)) return null;
   for (const p of arr) {
@@ -100,13 +102,20 @@ export function parseSizes(text: string): SizeInfo {
 }
 
 /** Traduce errores comunes de carga a un diagnóstico útil. */
-export function diagnoseUpload(text: string): string | null {
+export function diagnoseUpload(text: string, board: BoardDef | null = null): string | null {
   const t = text.toLowerCase();
-  if (/access is denied|acceso denegado|resource busy|device or resource busy|permission denied|can't open device/.test(t)) {
+  if (/access is denied|acceso denegado|resource busy|device or resource busy|permission denied|can't open device|could not open port/.test(t)) {
     return 'El puerto está ocupado o sin permiso. Cierra el Monitor Serie de Arduino IDE (u otra app que use el COM) y reintenta.';
   }
   if (/not in sync|stk500_getsync|programmer is not responding/.test(t)) {
-    return 'Sin respuesta del bootloader: revisa placa (Arduino UNO), puerto COM y cable USB. Algunos clones requieren otro driver (CH340).';
+    return 'Sin respuesta del bootloader: revisa que la placa elegida sea la conectada (este binario es para una placa AVR como el Arduino UNO), el puerto COM y el cable USB. Algunos clones requieren otro driver (CH340).';
+  }
+  // esptool (ESP32): la placa no entró en modo de carga o no es un ESP32.
+  if (/failed to connect to esp32|timed out waiting for packet header|wrong boot mode detected|no serial data received|invalid head of packet/.test(t)) {
+    return 'El ESP32 no entró en modo de carga. Mantén pulsado el botón BOOT (IO0) de la placa cuando la consola muestre «Connecting…» y suéltalo cuando empiece a escribir. Revisa también que la placa elegida sea la conectada, que el cable USB sea de datos y el driver del adaptador (CP210x o CH340).';
+  }
+  if (/a fatal error occurred/.test(t) && board?.family === 'esp32') {
+    return 'esptool no pudo completar la carga. Reintenta con el botón BOOT pulsado al empezar, acerca la placa con un cable USB corto y comprueba el puerto.';
   }
   if (/no such file|cannot find the file|port.*not found|no se puede encontrar/.test(t)) {
     return 'Puerto no encontrado: actualiza la lista de puertos y reconecta la placa.';
@@ -114,12 +123,31 @@ export function diagnoseUpload(text: string): string | null {
   return null;
 }
 
+/** Errores de compilación que no son del código: falta el core o la biblioteca. */
+export function diagnoseCompile(text: string, board: BoardDef | null): string | null {
+  const t = text.toLowerCase();
+  if (/platform not installed|platform .* not found|unknown fqbn|error resolving fqbn|invalid fqbn/.test(t)) {
+    const core = board ? coreById(board.core) : null;
+    return core
+      ? `Falta el core ${core.id} (${core.label}). Ábrelo en «Diagnóstico Arduino CLI» → Instalar core.`
+      : 'Arduino CLI no reconoce la placa seleccionada: revisa el core en «Diagnóstico Arduino CLI».';
+  }
+  if (/adafruit_pwmservodriver\.h: no such file/.test(t)) {
+    return `Falta la biblioteca "${REQUIRED_LIB}": instálala desde «Diagnóstico Arduino CLI».`;
+  }
+  return null;
+}
+
+function coreMissingDetail(c: CoreDef): string {
+  return `Falta el core ${c.id} (${c.usedBy})`;
+}
+
 export async function detectTools(runner: CommandRunner, candidates: string[]): Promise<ToolsStatus> {
   const status: ToolsStatus = {
     checkedAt: new Date().toISOString(),
     cliPath: candidates[candidates.length - 1],
     cli: { ok: false, detail: 'Arduino CLI no encontrado', version: null },
-    core: { ok: false, detail: 'No comprobado', version: null },
+    cores: CORES.map((c) => ({ id: c.id, ok: false, detail: 'No comprobado', version: null })),
     lib: { ok: false, detail: 'No comprobado', version: null },
     missing: [],
     boards: [],
@@ -138,16 +166,18 @@ export async function detectTools(runner: CommandRunner, candidates: string[]): 
   }
   if (!exe) {
     status.missing.push('Arduino CLI (instala Arduino IDE 2 o arduino-cli y reinicia el servicio)');
-    status.core.detail = 'Requiere Arduino CLI';
+    for (const c of status.cores) c.detail = 'Requiere Arduino CLI';
     status.lib.detail = 'Requiere Arduino CLI';
     return status;
   }
   const core = await runner.run(exe, ['core', 'list', '--format', 'json'], { timeoutMs: 30000 });
-  const coreV = core.code === 0 ? parseCoreVersion(tryJson(core.stdout)) : null;
-  status.core = coreV
-    ? { ok: true, detail: `Core ${REQUIRED_CORE} ${coreV}`, version: coreV }
-    : { ok: false, detail: `Falta el core ${REQUIRED_CORE} (Arduino UNO)`, version: null };
-  if (!coreV) status.missing.push(`Core ${REQUIRED_CORE}`);
+  const coreJson = core.code === 0 ? tryJson(core.stdout) : null;
+  status.cores = CORES.map((c) => {
+    const v = parseCoreVersion(coreJson, c.id);
+    // Solo hace falta el core de la placa que se use: los demás son opcionales.
+    if (!v) status.missing.push(`Core ${c.id} (solo para ${c.usedBy})`);
+    return v ? { id: c.id, ok: true, detail: `Core ${c.id} ${v}`, version: v } : { id: c.id, ok: false, detail: coreMissingDetail(c), version: null };
+  });
   const lib = await runner.run(exe, ['lib', 'list', '--format', 'json'], { timeoutMs: 30000 });
   const libV = lib.code === 0 ? parseLibVersion(tryJson(lib.stdout)) : null;
   status.lib = libV
@@ -157,6 +187,18 @@ export async function detectTools(runner: CommandRunner, candidates: string[]): 
   const boards = await runner.run(exe, ['board', 'list', '--format', 'json'], { timeoutMs: 20000 });
   if (boards.code === 0) status.boards = parseBoards(tryJson(boards.stdout));
   return status;
+}
+
+/** Nombre del binario principal que deja `compile --output-dir` para esa placa. */
+export function binaryName(sketchName: string, fqbn: string): string {
+  const core = coreById(boardByFqbn(fqbn)?.core ?? '');
+  return `${sketchName}.ino${core?.binExt ?? '.hex'}`;
+}
+
+/** Argumentos para instalar un core o actualizar el índice (con su URL adicional si la necesita). */
+export function coreArgs(action: 'install' | 'update-index', core: CoreDef): string[] {
+  const extra = core.indexUrl ? ['--additional-urls', core.indexUrl] : [];
+  return action === 'install' ? ['core', 'install', core.id, ...extra] : ['core', 'update-index', ...extra];
 }
 
 export function compileArgs(fqbn: string, buildPath: string, outputDir: string, sketchDir: string): string[] {
