@@ -92,9 +92,15 @@ export function initService() {
         break;
       case 'ports': {
         st().setLink({ ports: m.ports });
-        if (!st().link.port && m.ports.length) {
+        // El puerto recordado puede ya no existir (p. ej. COM7 de otra sesión o de otra placa). Un <select>
+        // cuyo valor no está en la lista MUESTRA la primera opción pero conserva el valor viejo, y ese
+        // valor fantasma es el que se usaría para conectar y para subir. Se reemplaza por uno real.
+        const cur = st().link.port;
+        if (m.ports.length && !m.ports.some((x) => x.path === cur)) {
           const p = m.ports.find((x) => x.likelyBoard) ?? m.ports[0];
           st().setLink({ port: p.path });
+        } else if (!m.ports.length && cur) {
+          st().setLink({ port: '' });
         }
         break;
       }
