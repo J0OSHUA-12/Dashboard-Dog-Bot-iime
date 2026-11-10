@@ -2,13 +2,13 @@ import { useEffect, useState } from 'react';
 import type React from 'react';
 import { useApp } from './state/store';
 import { TopBar } from './components/TopBar';
-import { LeftPanel } from './components/LeftPanel';
-import { Viewport } from './components/Viewport';
+import { ControlFlyout, HudRail, LeftPanel } from './components/LeftPanel';
+import { Kpis, Viewport } from './components/Viewport';
+import { CameraDial } from './components/CameraDial';
 import { EditorPanel } from './components/EditorPanel';
 import { BottomPanel } from './components/BottomPanel';
 import { DialogHost } from './components/Dialog';
-import { IChart, IChevron, ICode, ICube, IPaw, ISliders } from './components/icons';
-import { BottomTab } from './state/store';
+import { IChart, ICode, ICube, IPaw, ISliders } from './components/icons';
 import { stopAll } from './services/actions';
 import { initService } from './services/robotLink';
 import { startSimTelemetry } from './services/player';
@@ -54,51 +54,32 @@ function Resizer({ dir, onDrag }: { dir: 'v' | 'h'; onDrag: (delta: number) => v
   );
 }
 
-function Rail({ label, onOpen, side }: { label: string; onOpen: () => void; side: 'left' | 'right' }) {
-  return (
-    <div className={`rail ${side}`}>
-      <button className="btn sm icon ghost" onClick={onOpen} aria-label={`Mostrar ${label}`} title={`Mostrar ${label}`}>
-        <IChevron dir={side === 'left' ? 'right' : 'left'} size={14} />
-      </button>
-      <span className="rail-label" onClick={onOpen}>
-        {label}
-      </span>
-    </div>
-  );
+function useWindowWidth() {
+  const [w, setW] = useState(() => window.innerWidth);
+  useEffect(() => {
+    const f = () => setW(window.innerWidth);
+    window.addEventListener('resize', f);
+    return () => window.removeEventListener('resize', f);
+  }, []);
+  return w;
 }
 
-const DOCK_TABS: [BottomTab, string][] = [
-  ['telemetria', 'Telemetría'],
-  ['eventos', 'Eventos'],
-  ['serie', 'Monitor serie'],
-  ['ensayos', 'Registro de ensayos'],
-  ['mediciones', 'Mediciones'],
-];
-
-/** Panel inferior minimizado: las pestañas siguen a un clic y el contador de errores sigue visible. */
-function BottomDock() {
-  const setUi = useApp((s) => s.setUi);
-  const errors = useApp((s) => s.events.filter((e) => e.level === 'error').length);
-  return (
-    <div className="bottom dock" role="toolbar" aria-label="Panel inferior minimizado">
-      {DOCK_TABS.map(([k, l]) => (
-        <button key={k} className="dock-tab" onClick={() => setUi({ bottomOpen: true, bottomTab: k })}>
-          {l}
-          {k === 'eventos' && errors > 0 && <span className="tag err count">{errors}</span>}
-        </button>
-      ))}
-      <span className="spacer" />
-      <button className="btn xs ghost icon" onClick={() => setUi({ bottomOpen: true })} title="Mostrar panel inferior" aria-label="Mostrar panel inferior">
-        <IChevron dir="up" size={13} />
-      </button>
-    </div>
-  );
-}
+// Geometría del HUD (px). Debe coincidir con los valores de styles.css.
+const HUD = {
+  margin: 16,
+  top: 72, // barra superior
+  rail: 96, // riel de botones
+  gap: 12,
+  camera: 278, // bloque de cámara (vistas + dial + zoom)
+  tabs: 46, // barra de pestañas de datos
+  status: 36, // franja de indicadores
+};
 
 export function App() {
   const ui = useApp((s) => s.ui);
   const setUi = useApp((s) => s.setUi);
   const narrow = useNarrow();
+  const winW = useWindowWidth();
   const closed = useApp((s) => s.closed);
   // Editor de sketches como cajón lateral: cerrado al iniciar, siempre montado
   // para conservar pestañas, deshacer/rehacer y la consola de Arduino CLI.
@@ -162,38 +143,46 @@ export function App() {
   }
 
   const clampW = (v: number, lo: number, hi: number) => Math.round(Math.min(hi, Math.max(lo, v)));
-  // HUD: el visor 3D ocupa todo el fondo; los paneles flotan encima.
-  // --hud-l / --hud-b = espacio que ocupan el panel izquierdo y el inferior (incluye márgenes de 12 px).
-  const hudL = (ui.leftOpen ? ui.leftW : 40) + 24;
-  const hudB = (ui.bottomOpen ? ui.bottomH : 40) + 24;
-  const hudVars = { '--hud-l': `${hudL}px`, '--hud-b': `${hudB}px`, '--hud-lw': `${ui.leftOpen ? ui.leftW : 40}px`, '--hud-bh': `${ui.bottomOpen ? ui.bottomH : 40}px` } as React.CSSProperties;
+  // HUD: el visor 3D ocupa toda la ventana; los paneles de cristal flotan encima.
+  const railEnd = HUD.margin + HUD.rail;
+  const hudL = railEnd + HUD.gap + (ui.leftOpen ? ui.leftW + HUD.gap : 0);
+  // El editor empuja la cámara y las pestañas si queda sitio; si no, se superpone.
+  const editorSpan = ui.rightW + HUD.gap;
+  const pushes = editorOpen && winW - hudL - editorSpan - HUD.margin - HUD.camera - HUD.gap >= 540;
+  const hudR = pushes ? editorSpan : 0;
+  const dockH = ui.bottomOpen ? ui.bottomH : 0;
+  const hudVars = {
+    '--hud-l': `${hudL}px`,
+    '--hud-r': `${hudR}px`,
+    '--flyout-w': `${ui.leftW}px`,
+    '--editor-w': `${ui.rightW}px`,
+    '--dock-h': `${dockH}px`,
+  } as React.CSSProperties;
+  const insets = {
+    left: hudL - HUD.gap,
+    right: HUD.margin + (editorOpen ? editorSpan : 0),
+    top: HUD.top,
+    bottom: HUD.status + HUD.tabs + HUD.gap + dockH,
+  };
 
   return (
-    <div className="app">
-      <TopBar editorOpen={editorOpen} onToggleEditor={() => setEditorOpen((v) => !v)} />
-      <main className="main desk hud-stage" style={hudVars}>
-        <Viewport />
-        <div className={`hud hud-left ${ui.leftOpen ? '' : 'collapsed'}`}>
-          {ui.leftOpen ? (
-            <>
-              <LeftPanel onCollapse={() => setUi({ leftOpen: false })} />
-              <Resizer dir="v" onDrag={(d) => setUi({ leftW: clampW(useApp.getState().ui.leftW + d, 270, 520) })} />
-            </>
-          ) : (
-            <Rail label="Patas y servos" side="left" onOpen={() => setUi({ leftOpen: true })} />
-          )}
+    <div className="app hud-app">
+      <main className={`hud-stage ${ui.bottomOpen ? 'dock-open' : ''} ${editorOpen ? 'editor-open' : ''}`} style={hudVars}>
+        <Viewport hud insets={insets} />
+        <TopBar variant="hud" editorOpen={editorOpen} onToggleEditor={() => setEditorOpen((v) => !v)} />
+        <HudRail />
+        {ui.leftOpen && (
+          <div className="hud hud-flyout">
+            <ControlFlyout onClose={() => setUi({ leftOpen: false })} />
+            <Resizer dir="v" onDrag={(d) => setUi({ leftW: clampW(useApp.getState().ui.leftW + d, 300, 520) })} />
+          </div>
+        )}
+        <div className="hud hud-dock">
+          <BottomPanel dock resizer={<Resizer dir="h" onDrag={(d) => setUi({ bottomH: clampW(useApp.getState().ui.bottomH - d, 160, 520) })} />} />
         </div>
-        <div className={`hud hud-bottom ${ui.bottomOpen ? '' : 'collapsed'}`}>
-          {ui.bottomOpen ? (
-            <>
-              <Resizer dir="h" onDrag={(d) => setUi({ bottomH: clampW(useApp.getState().ui.bottomH - d, 150, 560) })} />
-              <BottomPanel onCollapse={() => setUi({ bottomOpen: false })} />
-            </>
-          ) : (
-            <BottomDock />
-          )}
-        </div>
-        <aside className={`hud drawer ${editorOpen ? 'open' : ''}`} style={{ width: ui.rightW }} inert={!editorOpen} aria-label="Editor de sketches">
+        <Kpis className="hud-status" />
+        <CameraDial />
+        <aside className={`hud hud-editor ${editorOpen ? 'open' : ''}`} inert={!editorOpen} aria-label="Editor de sketches">
           <Resizer dir="v" onDrag={(d) => setUi({ rightW: clampW(useApp.getState().ui.rightW - d, 340, 860) })} />
           <EditorPanel onCollapse={() => setEditorOpen(false)} />
         </aside>

@@ -1,4 +1,4 @@
-// Escena 3D: renderizador, cámara orbital, vistas, rejilla, selección y etiquetas.
+// Escena 3D: renderizador, cámara orbital, vistas, entorno marciano, selección y etiquetas.
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { CSS2DObject, CSS2DRenderer } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
@@ -6,29 +6,25 @@ import { ALL_JOINTS, JointId, LEG_LABEL, LEGS, LegId, jointKind } from '../../sh
 import { estimatedAngleDeg, getJoint } from '../../shared/profile';
 import { realDisplayUs, useApp } from '../state/store';
 import { DogBotModel, S } from './DogBotModel';
+import { EnvTheme, MarsEnvironment } from './MarsEnvironment';
+import { heightAt } from './marsTerrain';
 import { ModelParams } from './modelParams';
 
 export type ViewName = 'iso' | 'frontal' | 'lateral' | 'superior';
 
-const SCENE_THEME = {
-  dark: { bg: 0x0b0d10, gridMain: 0x2c2f3a, gridSub: 0x1e2029 },
-  light: { bg: 0xe9ecf1, gridMain: 0xbcc2cc, gridSub: 0xd3d7df },
-} as const;
-const BG = SCENE_THEME.dark.bg;
+/** Márgenes (px) que ocupan los paneles flotantes: el robot se centra en el área libre. */
+export interface SceneInsets {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+}
 
-function glowTexture() {
-  const c = document.createElement('canvas');
-  c.width = c.height = 256;
-  const g = c.getContext('2d')!;
-  const grd = g.createRadialGradient(128, 128, 10, 128, 128, 128);
-  grd.addColorStop(0, 'rgba(255,122,26,0.30)');
-  grd.addColorStop(0.45, 'rgba(239,62,54,0.10)');
-  grd.addColorStop(1, 'rgba(239,62,54,0)');
-  g.fillStyle = grd;
-  g.fillRect(0, 0, 256, 256);
-  const t = new THREE.CanvasTexture(c);
-  t.colorSpace = THREE.SRGBColorSpace;
-  return t;
+/** Orientación de la cámara para el dial: azimut y elevación en radianes, distancia en u. */
+export interface CameraPose {
+  azimuth: number;
+  polar: number;
+  distance: number;
 }
 
 export class DogBotScene {
@@ -39,7 +35,7 @@ export class DogBotScene {
   private controls: OrbitControls;
   private model!: DogBotModel;
   private ghost!: DogBotModel;
-  private grid: THREE.Group;
+  private env: MarsEnvironment;
   private axes: THREE.AxesHelper;
   private ring: THREE.Mesh;
   private raycaster = new THREE.Raycaster();
@@ -55,8 +51,15 @@ export class DogBotScene {
   private target = new THREE.Vector3(0, 1.45, 0);
   private userMoved = false;
   private lastView: ViewName = 'iso';
-  private gridLines: THREE.GridHelper | null = null;
-  private theme: keyof typeof SCENE_THEME = 'dark';
+  private theme: EnvTheme = 'dark';
+  private insets: SceneInsets = { left: 0, right: 0, top: 0, bottom: 0 };
+  private shift = new THREE.Vector2();
+  private size = new THREE.Vector2(1, 1);
+  private lastFrame = performance.now();
+  private viewAnim = 0;
+  private footPos = new THREE.Vector3();
+  /** Aviso por fotograma con la orientación de la cámara (para el dial de la interfaz). */
+  onCamera: ((pose: CameraPose) => void) | null = null;
 
   constructor(
     private host: HTMLElement,
@@ -66,80 +69,35 @@ export class DogBotScene {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
-    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.05;
+    // Tono neutro: conserva los colores de las piezas (naranja, rojo, verde) bajo la luz cálida.
+    this.renderer.toneMapping = THREE.NeutralToneMapping;
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
-    this.renderer.setClearColor(BG, 1);
+    this.renderer.setClearColor(0x120b08, 1);
     host.appendChild(this.renderer.domElement);
     this.renderer.domElement.className = 'viewport-canvas';
     this.labels = new CSS2DRenderer();
     this.labels.domElement.className = 'viewport-labels';
     host.appendChild(this.labels.domElement);
 
-    this.scene.fog = new THREE.Fog(BG, 14, 30);
-    this.camera = new THREE.PerspectiveCamera(30, 1, 0.05, 80);
+    this.camera = new THREE.PerspectiveCamera(36, 1, 0.1, 4000);
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enableDamping = true;
     this.controls.dampingFactor = 0.08;
     this.controls.minDistance = 2.5;
-    this.controls.maxDistance = 22;
-    this.controls.maxPolarAngle = Math.PI * 0.495;
+    this.controls.maxDistance = 26;
+    this.controls.maxPolarAngle = Math.PI * 0.492;
     this.controls.addEventListener('start', () => {
       this.userMoved = true;
+      this.viewAnim++;
     });
 
-    // Luces
-    this.scene.add(new THREE.HemisphereLight(0xdfe6ff, 0x1a1410, 0.95));
-    const key = new THREE.DirectionalLight(0xffffff, 2.1);
-    key.position.set(5, 9, 6);
-    key.castShadow = true;
-    key.shadow.mapSize.set(2048, 2048);
-    key.shadow.camera.left = -5;
-    key.shadow.camera.right = 5;
-    key.shadow.camera.top = 5;
-    key.shadow.camera.bottom = -5;
-    key.shadow.bias = -0.0005;
-    this.scene.add(key);
-    const rim = new THREE.DirectionalLight(0xff9a4a, 0.75);
-    rim.position.set(-6, 4, -5);
-    this.scene.add(rim);
-
-    // Suelo, rejilla y plataforma con brillo naranja
-    this.grid = new THREE.Group();
-    const floor = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), new THREE.ShadowMaterial({ opacity: 0.42 }));
-    floor.rotation.x = -Math.PI / 2;
-    floor.receiveShadow = true;
-    this.scene.add(floor);
-    this.setGridLines(SCENE_THEME.dark.gridMain, SCENE_THEME.dark.gridSub);
-    const glow = new THREE.Mesh(new THREE.PlaneGeometry(9, 9), new THREE.MeshBasicMaterial({ map: glowTexture(), transparent: true, depthWrite: false }));
-    glow.rotation.x = -Math.PI / 2;
-    glow.position.y = 0.002;
-    this.grid.add(glow);
-    const plat = new THREE.Shape();
-    const w = 2.6;
-    const h = 1.9;
-    const r = 0.25;
-    plat.moveTo(-w + r, -h);
-    plat.lineTo(w - r, -h);
-    plat.quadraticCurveTo(w, -h, w, -h + r);
-    plat.lineTo(w, h - r);
-    plat.quadraticCurveTo(w, h, w - r, h);
-    plat.lineTo(-w + r, h);
-    plat.quadraticCurveTo(-w, h, -w, h - r);
-    plat.lineTo(-w, -h + r);
-    plat.quadraticCurveTo(-w, -h, -w + r, -h);
-    const pts = plat.getPoints(48).map((p) => new THREE.Vector3(p.x, 0.004, p.y));
-    const outline = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: 0xff7a1a, transparent: true, opacity: 0.55 }));
-    this.grid.add(outline);
-    const inner = new THREE.LineLoop(
-      new THREE.BufferGeometry().setFromPoints(pts.map((p) => new THREE.Vector3(p.x * 0.94, 0.004, p.z * 0.92))),
-      new THREE.LineBasicMaterial({ color: 0xef3e36, transparent: true, opacity: 0.25 }),
-    );
-    this.grid.add(inner);
-    this.scene.add(this.grid);
+    // Entorno: terreno marciano, cielo, luz de atardecer y trazos de calibración.
+    this.env = new MarsEnvironment(this.renderer);
+    this.scene.fog = this.env.fog;
+    this.scene.add(this.env.world, this.env.overlay);
     this.axes = new THREE.AxesHelper(1.6);
-    this.axes.position.y = 0.01;
+    this.axes.position.y = 0.04;
     this.scene.add(this.axes);
 
     // Anillo de articulación seleccionada
@@ -179,7 +137,7 @@ export class DogBotScene {
     this.ghost.indexMeshes();
     this.model.root.position.y = this.model.standHeight;
     this.ghost.root.position.y = this.model.standHeight;
-    this.target.set(0, this.model.standHeight * 0.75, 0);
+    this.target.set(0, this.model.standHeight * 0.92, 0);
     this.scene.add(this.model.root, this.ghost.root);
     for (const leg of LEGS) {
       const div = document.createElement('div');
@@ -197,21 +155,29 @@ export class DogBotScene {
     this.buildModel(p);
   }
 
+  /** Distancia de encuadre: el robot debe caber en el ancho libre entre paneles. */
+  private fitDistance(): number {
+    const free = Math.max(240, this.size.x - this.insets.left - this.insets.right);
+    const aspect = free / Math.max(1, this.size.y);
+    return 11.2 * Math.max(1, Math.pow(1.3 / Math.min(1.3, aspect), 0.7));
+  }
+
   setView(v: ViewName, animate = true) {
     this.lastView = v;
     if (animate) this.userMoved = false;
-    const aspect = this.camera.aspect || 1.6;
-    const d = 8.6 * Math.max(1, Math.pow(1.25 / Math.min(1.25, aspect), 0.6));
+    const d = this.fitDistance();
     const t = this.target;
+    // «iso»: tres cuartos con la cámara baja, para que el horizonte y las montañas entren en cuadro.
     const pos =
       v === 'iso'
-        ? new THREE.Vector3(d * 0.72, d * 0.5, d * 0.78)
+        ? new THREE.Vector3(d * 0.72, d * 0.15, d * 0.68)
         : v === 'frontal'
           ? new THREE.Vector3(d, 0.35, 0.001)
           : v === 'lateral'
             ? new THREE.Vector3(0.001, 0.35, d)
             : new THREE.Vector3(0.001, d * 1.05, 0.002);
     pos.add(t);
+    const anim = ++this.viewAnim;
     if (!animate) {
       this.camera.position.copy(pos);
       this.controls.target.copy(t);
@@ -222,24 +188,70 @@ export class DogBotScene {
     const fromT = this.controls.target.clone();
     const start = performance.now();
     const step = () => {
-      const k = Math.min(1, (performance.now() - start) / 450);
-      const e = k * k * (3 - 2 * k);
+      if (anim !== this.viewAnim || this.disposed) return;
+      const k = Math.min(1, (performance.now() - start) / 520);
+      const e = 1 - Math.pow(1 - k, 4);
       this.camera.position.lerpVectors(from, pos, e);
       this.controls.target.lerpVectors(fromT, t, e);
       this.controls.update();
-      if (k < 1 && !this.disposed) requestAnimationFrame(step);
+      if (k < 1) requestAnimationFrame(step);
     };
     step();
+  }
+
+  /** Paneles abiertos: desplaza el encuadre al área libre (y reencuadra si el operador no movió la cámara). */
+  setInsets(i: SceneInsets) {
+    const prev = this.insets;
+    if (prev.left === i.left && prev.right === i.right && prev.top === i.top && prev.bottom === i.bottom) return;
+    const widthChanged = prev.left !== i.left || prev.right !== i.right;
+    this.insets = { ...i };
+    if (widthChanged && !this.userMoved) this.setView(this.lastView, true);
+  }
+
+  /** Gira la cámara alrededor del robot (radianes). */
+  orbit(dAzimuth: number, dPolar: number) {
+    this.userMoved = true;
+    this.viewAnim++;
+    const off = this.camera.position.clone().sub(this.controls.target);
+    const sph = new THREE.Spherical().setFromVector3(off);
+    sph.theta += dAzimuth;
+    sph.phi = Math.min(this.controls.maxPolarAngle, Math.max(0.06, sph.phi + dPolar));
+    this.camera.position.copy(this.controls.target).add(off.setFromSpherical(sph));
+    this.controls.update();
+  }
+
+  /** Acerca (< 1) o aleja (> 1) la cámara. */
+  zoom(factor: number) {
+    this.userMoved = true;
+    this.viewAnim++;
+    const off = this.camera.position.clone().sub(this.controls.target);
+    const len = Math.min(this.controls.maxDistance, Math.max(this.controls.minDistance, off.length() * factor));
+    this.camera.position.copy(this.controls.target).add(off.setLength(len));
+    this.controls.update();
   }
 
   private resize() {
     const w = Math.max(1, this.host.clientWidth);
     const h = Math.max(1, this.host.clientHeight);
+    this.size.set(w, h);
     this.renderer.setSize(w, h, false);
     this.labels.setSize(w, h);
     this.camera.aspect = w / h;
-    this.camera.updateProjectionMatrix();
+    this.applyShift(true);
     if (!this.userMoved) this.setView(this.lastView, false);
+  }
+
+  /** Centra el punto de fuga en el área libre desplazando la ventana de proyección (suavizado). */
+  private applyShift(snap = false) {
+    const i = this.insets;
+    const tx = (i.left - i.right) / 2;
+    const ty = (i.top - i.bottom) / 2;
+    const k = snap ? 1 : 0.14;
+    const nx = this.shift.x + (tx - this.shift.x) * k;
+    const ny = this.shift.y + (ty - this.shift.y) * k;
+    if (!snap && Math.abs(nx - this.shift.x) < 0.01 && Math.abs(ny - this.shift.y) < 0.01) return;
+    this.shift.set(Math.abs(tx - nx) < 0.3 ? tx : nx, Math.abs(ty - ny) < 0.3 ? ty : ny);
+    this.camera.setViewOffset(this.size.x, this.size.y, -this.shift.x, -this.shift.y, this.size.x, this.size.y);
   }
 
   private pick(ev: PointerEvent): JointId | null {
@@ -274,40 +286,33 @@ export class DogBotScene {
   private loop = () => {
     if (this.disposed) return;
     this.frame = requestAnimationFrame(this.loop);
+    const now = performance.now();
+    const dt = Math.min(0.1, (now - this.lastFrame) / 1000);
+    this.lastFrame = now;
     this.updateFromState();
+    this.applyShift();
     this.controls.update();
+    // La cámara nunca queda bajo el relieve.
+    const cam = this.camera.position;
+    const floor = heightAt(cam.x, cam.z) + 0.3;
+    if (cam.y < floor) cam.y = floor;
+    this.env.update(dt);
+    if (this.onCamera) {
+      this.onCamera({ azimuth: this.controls.getAzimuthalAngle(), polar: this.controls.getPolarAngle(), distance: this.controls.getDistance() });
+    }
     this.renderer.render(this.scene, this.camera);
     this.labels.render(this.scene, this.camera);
   };
-
-  private setGridLines(main: number, sub: number) {
-    if (this.gridLines) {
-      this.grid.remove(this.gridLines);
-      this.gridLines.geometry.dispose();
-      (this.gridLines.material as THREE.Material).dispose();
-    }
-    const gh = new THREE.GridHelper(24, 48, main, sub);
-    (gh.material as THREE.Material).transparent = true;
-    (gh.material as THREE.Material).opacity = 0.9;
-    this.grid.add(gh);
-    this.gridLines = gh;
-  }
-
-  /** Fondo, niebla y rejilla según el tema claro/oscuro de la interfaz. */
-  private applyTheme(theme: keyof typeof SCENE_THEME) {
-    this.theme = theme;
-    const t = SCENE_THEME[theme];
-    this.renderer.setClearColor(t.bg, 1);
-    (this.scene.fog as THREE.Fog).color.setHex(t.bg);
-    this.setGridLines(t.gridMain, t.gridSub);
-  }
 
   private updateFromState() {
     const s = useApp.getState();
     const now = performance.now();
     this.model.cover.visible = s.ui.showCover;
-    this.grid.visible = s.ui.showGrid;
-    if (s.ui.theme !== this.theme) this.applyTheme(s.ui.theme);
+    this.env.overlay.visible = s.ui.showGrid;
+    if (s.ui.theme !== this.theme) {
+      this.theme = s.ui.theme;
+      this.env.setTheme(s.ui.theme);
+    }
     this.axes.visible = s.ui.showAxes;
     this.labels.domElement.style.display = s.ui.showLabels ? '' : 'none';
     let ghostVisible = false;
@@ -339,6 +344,11 @@ export class DogBotScene {
       this.model.setHighlight(id, hl);
     }
     this.ghost.root.visible = ghostVisible;
+    // Marcas de proyección de los pies sobre el suelo.
+    LEGS.forEach((leg, i) => {
+      this.model.legs.get(leg)!.foot.getWorldPosition(this.footPos);
+      this.env.setFootMark(i, this.footPos.x, this.footPos.z);
+    });
     // Anillo en el pivote seleccionado, orientado al eje de giro
     const piv = this.model.pivots.get(s.selected);
     if (piv) {
@@ -392,6 +402,7 @@ export class DogBotScene {
     this.controls.dispose();
     this.model.dispose();
     this.ghost.dispose();
+    this.env.dispose();
     this.renderer.dispose();
     this.renderer.domElement.remove();
     this.labels.domElement.remove();

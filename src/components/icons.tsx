@@ -246,3 +246,76 @@ export const IExit = (p: P) => (
     <path d="M9 8l-4 4 4 4M5 12h11" />
   </svg>
 );
+export const IMinus = (p: P) => (
+  <svg {...base(p.size, p)}>
+    <path d="M5 12h14" />
+  </svg>
+);
+export const IHome = (p: P) => (
+  <svg {...base(p.size, p)}>
+    <path d="M4 11l8-7 8 7" />
+    <path d="M6.5 10v9h11v-9" />
+  </svg>
+);
+/** Articulación: dos pivotes unidos por un tramo. */
+export const IJoint = (p: P) => (
+  <svg {...base(p.size, p)}>
+    <circle cx="6.5" cy="6" r="2.3" />
+    <circle cx="14" cy="12.5" r="2.3" />
+    <path d="M8.3 7.5l3.9 3.4M14.9 14.6L17 20M14.5 20h5" />
+  </svg>
+);
+export const ICrosshair = (p: P) => (
+  <svg {...base(p.size, p)}>
+    <circle cx="12" cy="12" r="6.5" />
+    <path d="M12 2.5v4M12 17.5v4M2.5 12h4M17.5 12h4M12 12h.01" />
+  </svg>
+);
+/** Pose: perfil del cuadrúpedo con las patas flexionadas. */
+export const IPose = (p: P) => (
+  <svg {...base(p.size, p)}>
+    <path d="M4.5 9.5h13l2.5-3" />
+    <path d="M6 9.5L4.5 14.5 6.5 20M16.5 9.5l1.5 5-2 5.5" />
+  </svg>
+);
+/** Secuencia: pasos en orden y reproducción. */
+export const ISequence = (p: P) => (
+  <svg {...base(p.size, p)}>
+    <path d="M3.5 6h10M3.5 12h7M3.5 18h10" />
+    <path d="M16 8.5l5 3.5-5 3.5v-7z" fill="currentColor" stroke="none" />
+  </svg>
+);
+export const IProfile = (p: P) => (
+  <svg {...base(p.size, p)}>
+    <rect x="4.5" y="3" width="15" height="18" rx="2.5" />
+    <path d="M8.5 8h7M8.5 12h7M8.5 16h4" />
+  </svg>
+);
+export const IPulse = (p: P) => (
+  <svg {...base(p.size, p)}>
+    <path d="M2.5 12h4.2L9.2 6l4.3 12 2.6-6h5.4" />
+  </svg>
+);
+export const IList = (p: P) => (
+  <svg {...base(p.size, p)}>
+    <path d="M8.5 6h12M8.5 12h12M8.5 18h12M4 6h.01M4 12h.01M4 18h.01" />
+  </svg>
+);
+export const ITerminal = (p: P) => (
+  <svg {...base(p.size, p)}>
+    <rect x="3" y="4.5" width="18" height="15" rx="2.5" />
+    <path d="M7 10l3 2.3L7 14.6M13 15h4" />
+  </svg>
+);
+export const IClipboard = (p: P) => (
+  <svg {...base(p.size, p)}>
+    <rect x="5" y="4.5" width="14" height="16.5" rx="2.5" />
+    <path d="M9 4.5V3h6v1.5M9 13.2l2.1 2.1L15 11.4" />
+  </svg>
+);
+export const IRuler = (p: P) => (
+  <svg {...base(p.size, p)}>
+    <path d="M3 17L17 3l4 4L7 21l-4-4z" />
+    <path d="M7.4 12.6l2 2M10.9 9.1l2 2M14.4 5.6l2 2" />
+  </svg>
+);

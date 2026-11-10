@@ -19,7 +19,7 @@ import { downloadText, pickFile } from '../state/persist';
 import { service } from '../services/serviceClient';
 import { client } from '../services/robotLink';
 import { confirmDialog, promptDialog, toast } from './Dialog';
-import { IAlert, ICheck, IChevron, IDownload, IError, IFile, IFolder, IHammer, IInfo, IPlus, IRedo, IRefresh, ISave, ISearch, IUndo, IUpload, IX } from './icons';
+import { IAlert, ICheck, IDownload, IError, IFile, IFolder, IHammer, IInfo, IPlus, IRedo, IRefresh, ISave, ISearch, IUndo, IUpload, IX } from './icons';
 import { Disclosure } from './Disclosure';
 
 /** Compilaciones terminadas recibidas por WebSocket (pueden llegar antes que la respuesta HTTP). */
@@ -431,8 +431,8 @@ export function EditorPanel({ onCollapse }: { onCollapse?: () => void }) {
         <span className="panel-sub">C/C++ · Arduino CLI</span>
         <span className="spacer" />
         {onCollapse && (
-          <button className="btn sm icon ghost" onClick={onCollapse} title="Plegar panel" aria-label="Plegar editor">
-            <IChevron dir="right" size={14} />
+          <button className="btn sm icon ghost" onClick={onCollapse} title="Cerrar el editor" aria-label="Cerrar el editor">
+            <IX size={14} />
           </button>
         )}
       </div>

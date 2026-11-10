@@ -4,8 +4,8 @@ import { Sample } from '../../shared/telemetry';
 import { useApp } from '../state/store';
 
 const CHART_THEME = {
-  dark: { grid: 'rgba(255,255,255,0.06)', text: '#8d93a2' },
-  light: { grid: 'rgba(20,22,28,0.08)', text: '#6b7180' },
+  dark: { grid: 'rgba(255,214,178,0.1)', text: '#ab9c8f' },
+  light: { grid: 'rgba(74,42,20,0.11)', text: '#73625a' },
 } as const;
 
 export interface ChartSeries {

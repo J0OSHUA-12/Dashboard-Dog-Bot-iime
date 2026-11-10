@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { ALL_JOINTS, JointId } from '../shared/joints';
 import { createInitialProfile, estimatedAngleDeg, getJoint } from '../shared/profile';
 import { SEQUENCES, fluidLegOffsets, getSequence } from '../shared/sequences';
-import { DogBotModel } from '../src/three/DogBotModel';
+import { DogBotModel, LEG_MID, S } from '../src/three/DogBotModel';
 import { DEFAULT_MODEL_PARAMS } from '../src/three/modelParams';
 
 function snapshot(m: DogBotModel) {
@@ -53,6 +53,26 @@ describe('modelo 3D articulado', () => {
     m.root.updateMatrixWorld(true);
     const p1 = rig.knee.getWorldPosition(new THREE.Vector3());
     expect(p0.distanceTo(p1)).toBeLessThan(1e-9);
+  });
+
+  it('el servo inferior está centrado en el eje de la rodilla y en el plano medio de la pata', () => {
+    for (const j of ALL_JOINTS) m.setJointAngle(j, 0);
+    m.root.updateMatrixWorld(true);
+    for (const rig of m.legs.values()) {
+      // Mismo padre (muslo) que el pivote: sin desplazamiento hacia adelante ni a lo largo del muslo.
+      expect(rig.kneeServo.parent).toBe(rig.knee.parent);
+      expect(rig.kneeServo.position.x).toBeCloseTo(rig.knee.position.x, 9);
+      expect(rig.kneeServo.position.y).toBeCloseTo(rig.knee.position.y, 9);
+      // Lateralmente coincide con el tramo inferior (pie), no con una cara del muslo.
+      expect(rig.kneeServo.position.z).toBeCloseTo(rig.side * LEG_MID * S, 9);
+      expect(rig.foot.position.z).toBeCloseTo(rig.kneeServo.position.z, 9);
+      // No gira con la rodilla: el cuerpo va fijo al muslo.
+      const a = rig.kneeServo.getWorldPosition(new THREE.Vector3());
+      m.setJointAngle(`${rig.leg}-inferior` as JointId, 35);
+      m.root.updateMatrixWorld(true);
+      expect(rig.kneeServo.getWorldPosition(new THREE.Vector3()).distanceTo(a)).toBeLessThan(1e-9);
+      m.setJointAngle(`${rig.leg}-inferior` as JointId, 0);
+    }
   });
 
   it('abducción positiva lleva la pata hacia afuera en ambos lados', () => {
@@ -113,5 +133,28 @@ describe('secuencias', () => {
 
   it('la propuesta de 4 patas no es transmisible', () => {
     expect(SEQUENCES.find((s) => s.id === 'propuesta-trote-4-patas')!.fisicoPermitido).toBe(false);
+  });
+});
+
+describe('terreno del visor', () => {
+  it('la zona bajo el robot es plana y a cota 0 (el relieve no altera el apoyo dibujado)', async () => {
+    const { heightAt, PAD_RADIUS } = await import('../src/three/marsTerrain');
+    for (let a = 0; a < Math.PI * 2; a += 0.37) {
+      for (const r of [0, 1.3, 2.9, PAD_RADIUS * 0.999]) expect(heightAt(Math.cos(a) * r, Math.sin(a) * r)).toBe(0);
+    }
+    // El modelo por defecto cabe holgadamente dentro de la zona nivelada.
+    const m = new DogBotModel(DEFAULT_MODEL_PARAMS);
+    m.root.updateMatrixWorld(true);
+    for (const rig of m.legs.values()) {
+      const p = rig.foot.getWorldPosition(new THREE.Vector3());
+      expect(Math.hypot(p.x, p.z)).toBeLessThan(PAD_RADIUS * 0.6);
+    }
+  });
+
+  it('el relieve es continuo en el borde de la zona nivelada y determinista', async () => {
+    const { heightAt, PAD_RADIUS } = await import('../src/three/marsTerrain');
+    expect(Math.abs(heightAt(PAD_RADIUS + 0.05, 0))).toBeLessThan(0.01);
+    expect(heightAt(37.5, -12.25)).toBe(heightAt(37.5, -12.25));
+    expect(Number.isFinite(heightAt(300, 300))).toBe(true);
   });
 });

@@ -17,6 +17,11 @@ import { ModelParams } from './modelParams';
 
 export const S = 0.01; // 1 unidad de escena = 100 mm
 
+/** Desplazamiento lateral (mm) del plano medio de la pata respecto al pivote del servo superior. */
+export const LEG_MID = 4;
+/** Cuerpo del servo de rodilla (mm): ancho × alto a lo largo del muslo × grosor sobre el eje. */
+export const KNEE_SERVO = { w: 40, h: 40, d: 22 } as const;
+
 export const COLORS = {
   body: 0xf07a1c,
   bodyDark: 0xc95f12,
@@ -40,6 +45,8 @@ export interface LegRig {
   hip: THREE.Group;
   upper: THREE.Group;
   knee: THREE.Group;
+  /** Cuerpo del servo de rodilla (fijo al muslo, centrado en el eje de la rodilla). */
+  kneeServo: THREE.Object3D;
   foot: THREE.Object3D;
   label: THREE.Object3D;
 }
@@ -349,8 +356,15 @@ export class DogBotModel {
     hip.add(upper);
     const thigh = new THREE.Group();
     upper.add(thigh);
-    const thighMesh = rbox(42, p.thighLength + 30, 30, 10, redMat);
-    thighMesh.position.set(0, (-p.thighLength / 2 + 2) * S, side * 4 * S);
+    // Plano medio de la pata: el muslo, el servo de rodilla, el tramo inferior y el pie
+    // comparten este desplazamiento lateral, de modo que la rodilla queda centrada.
+    const zc = side * LEG_MID;
+    // La carcasa del muslo termina sobre el servo de rodilla, que queda a la vista en el
+    // extremo inferior (como en el robot real), en vez de cubrirlo.
+    const thighTop = 17;
+    const thighBottom = -p.thighLength + KNEE_SERVO.h / 2 - 6;
+    const thighMesh = rbox(42, thighTop - thighBottom, 30, 10, redMat);
+    thighMesh.position.set(0, ((thighTop + thighBottom) / 2) * S, zc * S);
     thigh.add(thighMesh);
     const hornUp = starHorn(15, 2.4);
     hornUp.rotation.y = side > 0 ? 0 : Math.PI;
@@ -364,31 +378,40 @@ export class DogBotModel {
     ]);
     const cable = new THREE.Mesh(new THREE.TubeGeometry(cableCurve, 20, 3 * S, 8), mat(0x0e0f12, { roughness: 0.4 }));
     thigh.add(cable);
-    // Servo de rodilla (DC5535) y rodamiento
-    const kneeServo = servoBlock(40, 20, 40);
-    kneeServo.rotation.x = Math.PI / 2;
-    kneeServo.position.set(14 * S, (-p.thighLength + 14) * S, -side * 12 * S);
+    // Servo de rodilla (DC5535): cuerpo fijo al muslo, CENTRADO en el eje de la rodilla
+    // (x = 0, sobre el pivote) y en el plano medio de la pata. Antes quedaba desplazado
+    // hacia adelante y hacia la cara interior del muslo.
+    const kneeServo = servoBlock(KNEE_SERVO.w, KNEE_SERVO.h, KNEE_SERVO.d);
+    kneeServo.rotation.y = side > 0 ? 0 : Math.PI; // etiqueta hacia la cara exterior
+    kneeServo.position.set(0, -p.thighLength * S, zc * S);
     thigh.add(kneeServo);
     tagJoint(thigh, `${leg}-superior`);
     tagJoint(kneeServo, `${leg}-inferior`);
     const knee = new THREE.Group();
     knee.position.set(0, -p.thighLength * S, 0);
     thigh.add(knee);
-    const brg = bearing(11);
-    brg.position.z = side * 21 * S;
+    // Sobre el eje: horn en la cara exterior (gira con el tramo inferior) y rodamiento en la interior.
+    const face = KNEE_SERVO.d / 2;
+    const hornKnee = starHorn(12, 2.4);
+    hornKnee.rotation.y = side > 0 ? 0 : Math.PI;
+    hornKnee.position.z = (zc + side * (face + 0.6)) * S;
+    knee.add(hornKnee);
+    const brg = bearing(9);
+    brg.position.z = (zc - side * (face + 1)) * S;
     knee.add(brg);
     const shin = shinMesh(p.shinLength, 16, redMat);
-    shin.position.z = side * 6 * S;
+    shin.position.z = zc * S;
     knee.add(shin);
     const foot = new THREE.Mesh(new THREE.SphereGeometry(7 * S, 16, 12), mat(COLORS.rubber, { roughness: 0.9 }));
-    foot.position.set(8 * S, -(p.shinLength + 2) * S, side * 6 * S);
+    foot.position.set(8 * S, -(p.shinLength + 2) * S, zc * S);
     foot.castShadow = true;
     knee.add(foot);
     tagJoint(knee, `${leg}-inferior`);
     const label = new THREE.Object3D();
-    label.position.set(-sx * 22 * S, 52 * S, side * (out + 14) * S);
+    // Las etiquetas de un lado van más altas para que no se tapen con las del otro en vistas bajas.
+    label.position.set(-sx * 22 * S, (side < 0 ? 88 : 52) * S, side * (out + 14) * S);
     hip.add(label);
-    this.legs.set(leg, { leg, side, front, hip, upper, knee, foot, label });
+    this.legs.set(leg, { leg, side, front, hip, upper, knee, kneeServo, foot, label });
     this.pivots.set(`${leg}-cadera`, { obj: hip, axis: 'x' });
     this.pivots.set(`${leg}-superior`, { obj: upper, axis: 'z' });
     this.pivots.set(`${leg}-inferior`, { obj: knee, axis: 'z' });

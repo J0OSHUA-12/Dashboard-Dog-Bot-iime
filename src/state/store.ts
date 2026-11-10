@@ -71,7 +71,7 @@ export interface TestRecord {
 
 export type ManualMeasurement = HistoricMeasurement;
 
-export type LeftTab = 'articulaciones' | 'calibracion' | 'poses' | 'perfil';
+export type LeftTab = 'articulaciones' | 'calibracion' | 'poses' | 'secuencia' | 'perfil' | 'conexion';
 export type BottomTab = 'telemetria' | 'eventos' | 'serie' | 'ensayos' | 'mediciones';
 export type MobileTab = '3d' | 'controles' | 'editor' | 'datos';
 
@@ -145,11 +145,11 @@ function initialJoints(p: DogBotProfile): Record<JointId, JointRt> {
 }
 
 const DEFAULT_UI: UiState = {
-  leftOpen: true,
+  leftOpen: false,
   rightOpen: true,
-  bottomOpen: true,
-  leftW: 300,
-  rightW: 400,
+  bottomOpen: false,
+  leftW: 328,
+  rightW: 430,
   bottomH: 262,
   leftTab: 'articulaciones',
   bottomTab: 'telemetria',

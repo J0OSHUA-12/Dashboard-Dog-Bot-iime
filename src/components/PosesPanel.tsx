@@ -43,7 +43,8 @@ async function applyWithChecks(pose: Pose, nombre: string) {
   }
 }
 
-export function PosesPanel() {
+/** `part` limita el panel a una de sus dos secciones (el HUD las abre por separado). */
+export function PosesPanel({ part }: { part?: 'secuencias' | 'poses' } = {}) {
   const poses = useApp((s) => s.poses);
   const profile = useApp((s) => s.profile);
   const mode = useApp((s) => s.mode);
@@ -101,6 +102,7 @@ export function PosesPanel() {
 
   return (
     <div>
+      {part !== 'poses' && (
       <div className="section">
         <h4>Secuencias</h4>
         <div className="row" style={{ marginBottom: 8 }}>
@@ -155,7 +157,9 @@ export function PosesPanel() {
           })}
         </div>
       </div>
+      )}
 
+      {part !== 'secuencias' && (
       <div className="section">
         <h4>
           Poses
@@ -240,6 +244,7 @@ export function PosesPanel() {
           })}
         </div>
       </div>
+      )}
     </div>
   );
 }

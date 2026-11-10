@@ -37,13 +37,13 @@ inválido no se importa, y el motivo se muestra en un aviso y en Eventos.
 
 1. Robot **sostenido en el soporte**, patas en el aire. Si vas a buscar extremos, desacopla
    el brazo del servo para no forzar topes de las piezas impresas.
-2. Pestaña **Calibración**: elige la articulación. Empieza por **D1 · Inferior (canal 1)**;
+2. Botón **Calibración** del riel izquierdo: elige la articulación. Empieza por **D1 · Inferior (canal 1)**;
    el botón «Ir a canal 1» lleva directamente a él.
 3. Define una **banda de exploración** conservadora. El botón «Usar 1300–1700 (histórica)» la
    rellena.
 4. Activa **Sesión de calibración**, pulsa **Armar (calib.)** y confirma la lista de
    comprobación.
-5. Pestaña Articulaciones → **Habilitar canal…** del canal elegido, con el pulso inicial en la
+5. Botón Articulaciones → **Habilitar canal…** del canal elegido, con el pulso inicial en la
    referencia. Sin sensor, puede haber un salto.
 6. Vuelve a Calibración y avanza con **±1/5/10/25/50 µs**, observando la pata. **Nunca hasta
    topar.** Para salir, usa DETENER (Esc), *PWM off canal* o *Desarmar*.

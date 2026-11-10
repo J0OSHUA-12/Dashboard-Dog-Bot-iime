@@ -18,6 +18,7 @@
 | D12 | Ángulo **estimado** con 2000 µs / 180° y signos del dossier, editable | Sin calibrar no se atribuyen grados físicos |
 | D13 | Reconexión con el firmware ya armado → STOP sin cortar PWM | No soltar un robot que podría estar sosteniendo peso, ni reenviar consignas viejas |
 | D14 | Vite 7 / Vitest 4 en lugar de las versiones mayores más recientes | Esas versiones fallaban con `npm ci` (bug de árbol de dependencias de npm 10) y `@codemirror/language` 6.13.0 venía sin una dependencia, así que se fijó en 6.12.4 |
+| D15 | HUD de cristal cálido sobre un **terreno marciano procedural** (sin texturas ni modelos externos) | El visor ocupa toda la ventana y los paneles flotan encima. El terreno es un escenario visual: la zona bajo el robot es plana y no se simula contacto ni dinámica; los anillos y la regla del suelo sí están a escala (1 u = 100 mm) |
 
 ## Estado actual
 

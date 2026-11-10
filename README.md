@@ -15,12 +15,24 @@ carga reales mediante Arduino CLI, telemetría honesta y registro de ensayos.
 
 ![Dog Bot Control en simulación, 1920×1080](docs/capturas/escritorio-1920.jpg)
 
-| Portátil 1366×768 | Robot real (puerto virtual de prueba, sin hardware) | Celular |
+| Portátil 1366×768 | Editor de sketches | Celular |
 |---|---|---|
-| ![](docs/capturas/portatil-1366.jpg) | ![](docs/capturas/robot-real-puerto-virtual-1366.jpg) | ![](docs/capturas/movil-3d.jpg) |
+| ![](docs/capturas/portatil-1366.jpg) | ![](docs/capturas/editor-1366.jpg) | ![](docs/capturas/movil-3d.jpg) |
 
-> La captura «robot real» se tomó con un **puerto serie virtual** conectado al firmware
-> ejecutado en la PC (`firmware/pruebas_host`). No muestra hardware real.
+**Interfaz.** El visor 3D ocupa toda la ventana, sobre un terreno marciano procedural (escenario
+visual: no simula contacto ni dinámica; los anillos y la regla del suelo sí están a escala del
+modelo). Encima flotan paneles de cristal:
+
+- **Riel izquierdo**: Articulaciones, Calibración, Poses, Secuencia, Perfil y Conectar. Cada botón
+  abre su panel al lado; otro clic lo cierra.
+- **Arriba a la derecha**: Editor, PWM ON/OFF, DETENER, modo claro/oscuro y Salir.
+- **Base**: pestañas de datos (Telemetría, Eventos, Monitor serie, Registro de ensayos y
+  Mediciones) que se despliegan al pulsarlas, la franja de indicadores y, en la esquina, las
+  vistas de cámara con el dial de órbita y el zoom.
+
+> `docs/capturas/robot-real-puerto-virtual-1366.jpg` muestra el modo ROBOT REAL con un **puerto
+> serie virtual** conectado al firmware ejecutado en la PC (`firmware/pruebas_host`), sin hardware
+> real. Es de la interfaz anterior al HUD: no se ha vuelto a tomar.
 
 ## Uso rápido en Windows
 
