@@ -328,7 +328,7 @@ class FakePort implements PortLike {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   handlers: Record<string, ((...a: any[]) => void)[]> = {};
   failOpen: string | null = null;
-  pendingDrains: (() => void)[] = [];
+  pendingWrites: (() => void)[] = [];
   open(cb: (err: Error | null) => void) {
     if (this.failOpen) return cb(new Error(this.failOpen));
     this.isOpen = true;
@@ -338,12 +338,10 @@ class FakePort implements PortLike {
     this.isOpen = false;
     cb?.(null);
   }
-  write(d: string) {
+  write(d: string, cb?: (err: Error | null | undefined) => void) {
     this.written.push(d);
+    this.pendingWrites.push(() => cb?.(null));
     return true;
-  }
-  drain(cb: (err: Error | null) => void) {
-    this.pendingDrains.push(() => cb(null));
   }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   on(ev: string, fn: (...a: any[]) => void) {
@@ -405,9 +403,9 @@ describe('SerialManager (puerto simulado)', () => {
     sm.on('dropped', (n) => dropped.push(n));
     await sm.open('COM3', 115200);
     for (let i = 0; i < 30; i++) sm.send(`${i + 1} MOVE 60 1 1500`, false);
-    expect(port.written.length).toBe(1); // esperando drain
+    expect(port.written.length).toBe(1); // esperando que termine la escritura
     sm.send('99 STOP', true);
-    port.pendingDrains.shift()!();
+    port.pendingWrites.shift()!();
     expect(port.written[1]).toBe('99 STOP\n');
     expect(dropped.reduce((a, b) => a + b, 0)).toBeGreaterThan(10);
     port.emit('data', Buffer.from('OK 1 HB up=1\r\nPW 10 1:15'));

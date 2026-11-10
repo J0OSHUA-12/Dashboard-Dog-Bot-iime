@@ -11,7 +11,6 @@ export interface PortLike {
   open(cb: (err: Error | null) => void): void;
   close(cb?: (err: Error | null) => void): void;
   write(data: string, cb?: (err: Error | null | undefined) => void): boolean;
-  drain(cb: (err: Error | null) => void): void;
   on(ev: 'data', fn: (d: Buffer) => void): unknown;
   on(ev: 'close', fn: (err?: Error | null) => void): unknown;
   on(ev: 'error', fn: (err: Error) => void): unknown;
@@ -55,24 +54,6 @@ export function boardHint(vendorId: string | null, manufacturer: string | null):
   if (v === '1a86' || /wch|ch340|ch910/i.test(m)) return 'CH340';
   if (v === '0403' || /ftdi/i.test(m)) return 'FTDI';
   return null;
-}
-
-/** Chip/adaptador USB-serie según el vendorId. NO identifica la placa: un ESP32 con CH340 se ve igual que un clon de UNO. */
-export function usbChipName(vendorId: string | null, manufacturer: string | null): string | null {
-  switch ((vendorId ?? '').toLowerCase()) {
-    case '2341':
-    case '2a03':
-      return 'Arduino';
-    case '1a86':
-      return 'CH340/CH9102';
-    case '10c4':
-      return 'CP210x';
-    case '0403':
-      return 'FTDI';
-    case '303a':
-      return 'Espressif USB';
-  }
-  return /arduino/i.test(manufacturer ?? '') ? 'Arduino' : null;
 }
 
 export class SerialManager extends EventEmitter {
@@ -191,11 +172,15 @@ export class SerialManager extends EventEmitter {
     if (this.writing || !this.port || this.queue.length === 0) return;
     const line = this.queue.shift()!;
     this.writing = true;
+    // Se continúa con el aviso de escritura de Node, NO con drain(): en Windows, con algunos drivers
+    // USB-serie (CH340 en ESP32), drain() (FlushFileBuffers) puede quedar colgado y bloquear también
+    // la recepción: las respuestas de la placa llegaban con ~30 s de retraso, al reiniciarla.
     this.port.write(line + '\n', (err) => {
-      if (err) this.setStatus({ state: 'error', error: err.message, diagnostic: 'Error de escritura en el puerto.' });
-    });
-    this.port.drain(() => {
       this.writing = false;
+      if (err) {
+        this.setStatus({ state: 'error', error: err.message, diagnostic: 'Error de escritura en el puerto.' });
+        return;
+      }
       this.pump();
     });
   }
