@@ -48,7 +48,14 @@ interface EditorState {
 }
 
 let lineId = 1;
-const stored = load<{ docs: EditorDoc[]; activeId: string | null } | null>('editor', null);
+const storedRaw = load<{ docs: EditorDoc[]; activeId: string | null } | null>('editor', null);
+// Las pestañas de solo lectura (firmware, originales) NO se restauran: su contenido vive en el disco
+// y una copia guardada en el navegador quedaría vieja tras actualizar el repositorio (ej. firmware 0.1.0
+// mostrado y compilado aunque el archivo ya sea 0.2.0). Se vuelven a leer del disco al abrirlas.
+const storedDocs = (storedRaw?.docs ?? []).filter((d) => !d.readOnly);
+const stored = storedRaw
+  ? { docs: storedDocs, activeId: storedDocs.some((d) => d.id === storedRaw.activeId) ? storedRaw.activeId : (storedDocs[storedDocs.length - 1]?.id ?? null) }
+  : null;
 // Placa elegida (UNO o ESP32): se recuerda entre sesiones; si no es del catálogo, UNO.
 const storedBoard = load<string | null>('board', null);
 
@@ -68,8 +75,10 @@ export const useEditor = create<EditorState>((set, get) => ({
   open: (d) => {
     const existing = get().docs.find((x) => x.source === d.source && x.name === d.name && d.source !== 'nuevo' && d.source !== 'local');
     if (existing) {
-      set({ activeId: existing.id });
-      persist(get().docs, existing.id);
+      // Solo lectura: refrescar con lo que hay hoy en el disco (nunca hay ediciones locales que perder).
+      const docs = existing.readOnly ? get().docs.map((x) => (x.id === existing.id ? { ...x, content: d.content, saved: d.saved, ficha: d.ficha, hash: null } : x)) : get().docs;
+      set({ docs, activeId: existing.id });
+      persist(docs, existing.id);
       return;
     }
     const docs = [...get().docs, d];
