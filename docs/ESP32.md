@@ -87,6 +87,17 @@ binario para otra familia, el diálogo de carga lo avisa y pide confirmarlo.
 - **Pérdida de enlace.** Igual que en el UNO: si el USB se corta estando armado, el firmware
   aplica la política configurada (HOLD u OFF).
 
+## Problemas conocidos en Windows (adaptador CH9102/CH343)
+
+- **«waiting for download» al conectar.** Si la pestaña Serie muestra `boot:0x3 (DOWNLOAD_BOOT…)`, la placa
+  arrancó en modo de carga y no ejecuta el firmware. El servicio deja DTR y RTS inactivos al abrir el puerto
+  para evitarlo; si aun así ocurre, pulsa EN.
+- **Respuestas que llegan tarde o solo al enviar otra orden.** Con `serialport` y este adaptador en Windows,
+  la lectura se queda retenida hasta que se escribe otra cosa en el puerto (el Monitor Serie de Arduino IDE
+  no tiene el problema). Como solución provisional el servicio envía una línea vacía cada 40 ms cuando no hay
+  nada que escribir, a 115200 baudios y solo en Windows; el firmware la ignora. Se desactiva con la variable
+  de entorno `DOGBOT_SERIAL_KICK=0`. **Sin validar en hardware.**
+
 ## Hacia la app en el celular (futuro, no implementado)
 
 El motivo para pasar al ESP32 es que tiene WiFi y Bluetooth. **Hoy no se usan**: el enlace

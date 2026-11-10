@@ -27,6 +27,7 @@ export interface PortFactory {
 export const ALLOWED_BAUDS = [9600, 19200, 38400, 57600, 115200];
 export const SERIAL_PATH_RE = /^(COM\d{1,3}|\/dev\/(tty|cu)[A-Za-z0-9._-]{1,40})$/i;
 const MAX_QUEUE = 16;
+const KICK_MS = 40;
 const MAX_RX_LINE = 512;
 
 export function diagnoseOpenError(msg: string): string {
@@ -63,9 +64,46 @@ export class SerialManager extends EventEmitter {
   private writing = false;
   private rxBuf = '';
   private closingOnPurpose = false;
+  private kickTimer: ReturnType<typeof setInterval> | null = null;
+  private kickMs: number;
 
-  constructor(private factory: PortFactory) {
+  /**
+   * kickMs: intervalo del "empujón" de lectura (0 = desactivado). Por defecto, activo solo en Windows
+   * (desactivable con DOGBOT_SERIAL_KICK=0). Ver startKick().
+   */
+  constructor(
+    private factory: PortFactory,
+    opts: { kickMs?: number } = {},
+  ) {
     super();
+    this.kickMs = opts.kickMs ?? (process.platform === 'win32' && process.env.DOGBOT_SERIAL_KICK !== '0' ? KICK_MS : 0);
+  }
+
+  /**
+   * Solución provisional para adaptadores WCH (CH9102/CH343) en Windows: con serialport, las respuestas
+   * de la placa no llegan al programa hasta que se escribe OTRA cosa en el puerto (se vio con 'OK n STATUS'
+   * entregado 6,6 s tarde, justo al escribir la orden siguiente), mientras que el Monitor Serie de Arduino
+   * IDE las recibe al instante. Escribir una línea vacía ('\n') libera la lectura, y el firmware DogBot la
+   * ignora sin responder ni contar como enlace activo. Solo con el protocolo DogBot (115200 baudios) y solo
+   * cuando no hay una escritura en curso o pendiente, para no intercalar nada en mitad de una orden.
+   */
+  private startKick(port: PortLike, baud: number) {
+    this.stopKick();
+    if (!this.kickMs || baud !== 115200) return;
+    this.kickTimer = setInterval(() => {
+      if (this.port !== port || this.writing || this.queue.length > 0) return;
+      try {
+        port.write('\n', () => undefined);
+      } catch {
+        /* un fallo de escritura se notificará por el evento 'error' del puerto */
+      }
+    }, this.kickMs);
+    this.kickTimer.unref?.();
+  }
+
+  private stopKick() {
+    if (this.kickTimer) clearInterval(this.kickTimer);
+    this.kickTimer = null;
   }
 
   private setStatus(s: Partial<SerialStatus>) {
@@ -96,22 +134,26 @@ export class SerialManager extends EventEmitter {
     this.port = port;
     this.queue = [];
     this.rxBuf = '';
-    // DTR y RTS en el mismo estado. En Windows el puerto se abre con DTR activo y
-    // RTS inactivo; en las placas ESP32 esa combinación mantiene GPIO0 a nivel
-    // bajo, y un reinicio (botón EN, caída de tensión) las dejaría en modo de
-    // carga en vez de ejecutar el firmware. Con ambas activas arrancan normal.
-    // El UNO no usa RTS y DTR ya estaba activo, así que para él no cambia nada.
+    // DTR y RTS inactivos (0,0). En las placas ESP32 el circuito de auto-reset mapea:
+    //   (DTR,RTS) = (0,0)->EN=1,IO0=1 funcionar | (1,0)->IO0=0 | (0,1)->EN=0 (reset) | (1,1)->funcionar.
+    // Con (1,0), que es como Windows deja el puerto al abrirlo, un reinicio posterior (botón EN) arranca en
+    // modo de carga («waiting for download»). Forzar (1,1) desde (0,0) obligaba a pasar por (0,1): reinicio
+    // al abrir y arranque en modo de carga según la carrera entre EN e IO0. El binding de Windows aplica
+    // primero RTS y luego DTR, así que ir a (0,0) desde (1,1) o (1,0) pasa por (1,0) y llega a (0,0) sin
+    // ningún reinicio. El UNO ya se reinició al abrir (DTR activo); soltar DTR después no lo reinicia.
     try {
-      port.set?.({ dtr: true, rts: true }, () => undefined);
+      port.set?.({ dtr: false, rts: false }, () => undefined);
     } catch {
       /* adaptadores sin líneas de control: no es un error */
     }
     port.on('data', (d: Buffer) => this.onData(d));
+    this.startKick(port, baud);
     port.on('error', (e: Error) => {
       this.setStatus({ state: 'error', error: e.message, diagnostic: diagnoseOpenError(e.message) });
     });
     port.on('close', () => {
       const unexpected = !this.closingOnPurpose;
+      this.stopKick();
       this.port = null;
       this.queue = [];
       this.writing = false;
@@ -128,6 +170,7 @@ export class SerialManager extends EventEmitter {
       return;
     }
     this.closingOnPurpose = true;
+    this.stopKick();
     await new Promise<void>((resolve) => p.close(() => resolve()));
     this.closingOnPurpose = false;
     this.port = null;

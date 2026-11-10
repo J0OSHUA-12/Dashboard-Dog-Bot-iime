@@ -363,11 +363,11 @@ describe('SerialManager (puerto simulado)', () => {
     expect(diagnoseOpenError('File not found')).toMatch(/no existe/);
   });
 
-  it('al abrir deja DTR y RTS iguales para que un ESP32 no quede en modo de carga', async () => {
+  it('al abrir deja DTR y RTS inactivos para que un ESP32 no arranque en modo de carga', async () => {
     const port = new FakePort();
     const sm = new SerialManager({ create: () => port, list: async () => [] });
     await sm.open('COM4', 115200);
-    expect(port.lines).toEqual([{ dtr: true, rts: true }]);
+    expect(port.lines).toEqual([{ dtr: false, rts: false }]);
     expect(sm.status.state).toBe('abierto');
     // Un puerto sin líneas de control (o que falla al fijarlas) se abre igual.
     const bare = new FakePort() as PortLike;
@@ -386,6 +386,42 @@ describe('SerialManager (puerto simulado)', () => {
     expect(boardHint('1a86', 'wch.cn')).toBe('CH340');
     expect(boardHint(null, null)).toBeNull();
     expect(boardHint('8087', 'Intel')).toBeNull();
+  });
+
+  it('empuja la lectura con una línea vacía solo en reposo y a 115200 baudios', async () => {
+    vi.useFakeTimers();
+    try {
+      const port = new FakePort();
+      const sm = new SerialManager({ create: () => port, list: async () => [] }, { kickMs: 40 });
+      await sm.open('COM6', 115200);
+      vi.advanceTimersByTime(40);
+      expect(port.written).toEqual(['\n']);
+      // Con una orden en curso no se intercala nada.
+      sm.send('1 HELLO 5', false);
+      expect(port.written[1]).toBe('1 HELLO 5\n');
+      vi.advanceTimersByTime(200);
+      expect(port.written.length).toBe(2);
+      port.pendingWrites.shift(); // el empujón anterior (sin esperar)
+      port.pendingWrites.shift()!();
+      vi.advanceTimersByTime(40);
+      expect(port.written[2]).toBe('\n');
+      // Al cerrar se detiene.
+      await sm.close();
+      const n = port.written.length;
+      vi.advanceTimersByTime(400);
+      expect(port.written.length).toBe(n);
+      // Otras velocidades (sketches históricos) y kickMs 0: nada.
+      for (const [ms, baud] of [[40, 9600], [0, 115200]] as const) {
+        const p2 = new FakePort();
+        const s2 = new SerialManager({ create: () => p2, list: async () => [] }, { kickMs: ms });
+        await s2.open('COM7', baud);
+        vi.advanceTimersByTime(400);
+        expect(p2.written).toEqual([]);
+        await s2.close();
+      }
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('valida puerto y velocidad', async () => {
