@@ -13,6 +13,7 @@ import origCal from '../../DOGBOT_CLAUDE_CODE/originales/CALIBRACION_6_SERVOS.in
 import origWalk2 from '../../DOGBOT_CLAUDE_CODE/originales/CAMINATA_2_0_EXPERIMENTAL.ino?raw';
 import origFluid from '../../DOGBOT_CLAUDE_CODE/originales/CAMINATA_FLUIDA_PROBADA.ino?raw';
 import { BuildRecord, JobInfo, SketchEntry, ToolsStatus, buildKey, isValidSketchName, sha256Hex } from '../../shared/serviceApi';
+import { BOARDS, boardByFqbn, coreById, familyOfMcu } from '../../shared/boards';
 import { EditorDoc, useEditor } from '../state/editorStore';
 import { useApp, uid } from '../state/store';
 import { downloadText, pickFile } from '../state/persist';
@@ -24,9 +25,20 @@ import { Disclosure } from './Disclosure';
 
 /** Compilaciones terminadas recibidas por WebSocket (pueden llegar antes que la respuesta HTTP). */
 const finishedBuilds = new Map<string, BuildRecord>();
+/**
+ * Trabajos que el WebSocket ya dio por terminados. Si un trabajo acaba muy
+ * rápido (p. ej. una carga que falla al instante), ese aviso puede llegar antes
+ * que la respuesta HTTP que lo inició: sin esto, la respuesta lo volvería a
+ * marcar «en curso» y Compilar/Subir quedarían bloqueados.
+ */
+const finishedJobs = new Set<string>();
+function trackJob(job: JobInfo) {
+  if (!finishedJobs.has(job.id)) useEditor.getState().setJob(job);
+}
 
 const FICHAS: Record<string, string> = {
-  DogBotDashboard: 'Firmware NUEVO del dashboard (protocolo DOGBOT v1, 115200 baudios). Compilado sólo en software; PENDIENTE DE VALIDACIÓN FÍSICA. Arranca sin mover nada.',
+  DogBotDashboard:
+    'Firmware NUEVO del dashboard (protocolo DOGBOT v1, 115200 baudios). El mismo archivo sirve para Arduino UNO y para ESP32: elige la placa antes de compilar. Probado sólo en software; PENDIENTE DE VALIDACIÓN FÍSICA. Arranca sin mover nada.',
   CAMINATA_FLUIDA_PROBADA:
     'REPORTADO PROBADO sólo suspendido. ¡ATENCIÓN! Su setup() centra los servos uno por uno y ejecuta 3 ciclos AUTOMÁTICAMENTE al arrancar o reiniciar (abrir el puerto reinicia el UNO). Sin parser: "x" no lo detiene. No usar como firmware del dashboard.',
   CAMINATA_2_0_EXPERIMENTAL:
@@ -40,12 +52,6 @@ const BUNDLED: { source: 'firmware' | 'originales'; name: string; content: strin
   { source: 'originales', name: 'CAMINATA_FLUIDA_PROBADA', content: origFluid },
   { source: 'originales', name: 'CAMINATA_2_0_EXPERIMENTAL', content: origWalk2 },
   { source: 'originales', name: 'CALIBRACION_6_SERVOS', content: origCal },
-];
-
-const BOARDS = [
-  { fqbn: 'arduino:avr:uno', label: 'Arduino UNO' },
-  { fqbn: 'arduino:avr:nano', label: 'Arduino Nano (no usado en Dog Bot)' },
-  { fqbn: 'arduino:avr:mega:cpu=atmega2560', label: 'Arduino Mega 2560 (no usado)' },
 ];
 
 const hl = HighlightStyle.define([
@@ -136,6 +142,9 @@ export function EditorPanel({ onCollapse }: { onCollapse?: () => void }) {
   const serviceUp = useApp((s) => s.link.serviceAvailable);
   const ports = useApp((s) => s.link.ports);
   const port = useApp((s) => s.link.port);
+  const connectedMcu = useApp((s) => s.link.firmware?.mcu ?? null);
+  const board = boardByFqbn(fqbn);
+  const boardCore = board ? coreById(board.core) : null;
   const active = docs.find((d) => d.id === activeId) ?? null;
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
@@ -208,6 +217,7 @@ export function EditorPanel({ onCollapse }: { onCollapse?: () => void }) {
         const ed = useEditor.getState();
         ed.setJob(m.job.state === 'en-curso' ? m.job : null);
         if (m.job.state !== 'en-curso') {
+          finishedJobs.add(m.job.id);
           ed.log(m.job.state === 'ok' ? 'info' : 'stderr', `■ ${m.job.title}: ${m.job.summary}\n`);
           useApp.getState().addEvent(m.job.state === 'ok' ? 'ok' : 'error', 'compilación', `${m.job.title}: ${m.job.summary}`);
           if (m.job.kind === 'upload' && m.job.state === 'ok') {
@@ -354,7 +364,7 @@ export function EditorPanel({ onCollapse }: { onCollapse?: () => void }) {
       jobDoc.current.set(r.job.id, active.id);
       const done = finishedBuilds.get(r.build.id);
       useEditor.getState().setBuild(active.id, { build: done ?? r.build, jobId: r.job.id });
-      if (!done) useEditor.getState().setJob(r.job);
+      if (!done) trackJob(r.job);
     } catch (e) {
       toast((e as Error).message, 'error');
       useEditor.getState().log('stderr', (e as Error).message + '\n');
@@ -368,6 +378,10 @@ export function EditorPanel({ onCollapse }: { onCollapse?: () => void }) {
       return;
     }
     const historical = active.source === 'originales';
+    const esp32 = board?.family === 'esp32';
+    // Si la placa conectada ya se identificó, avisar cuando el binario es para otra familia.
+    const connectedFamily = familyOfMcu(connectedMcu);
+    const mismatch = !!board && !!connectedFamily && connectedFamily !== board.family;
     const ok = await confirmDialog({
       title: `Subir ${active.name} a ${port}`,
       danger: true,
@@ -376,17 +390,34 @@ export function EditorPanel({ onCollapse }: { onCollapse?: () => void }) {
           <div>
             Se subirá SOLO el binario de la compilación <span className="mono">{build.build.id.slice(0, 8)}</span> (sha256 <span className="mono">{build.build.contentHash.slice(0, 12)}…</span>). El puerto se liberará durante la carga.
           </div>
+          <div>
+            Placa de destino: <b>{board?.label ?? fqbn}</b>.
+          </div>
+          {mismatch && (
+            <div className="note warn">
+              <span>
+                La placa conectada se identificó como <b>{connectedMcu}</b>, pero este binario es para <b>{board?.label}</b>. Subirlo a una placa distinta falla o la deja sin firmware válido. Cambia la placa en el editor y vuelve a compilar si te equivocaste.
+              </span>
+            </div>
+          )}
           <div className="note warn">La placa se reiniciará y ejecutará este sketch. {historical ? 'Este sketch HISTÓRICO puede mover los servos por su cuenta al arrancar.' : 'Un sketch distinto de DogBotDashboard dejará los controles bloqueados hasta identificar un firmware compatible.'}</div>
+          {esp32 && (
+            <div className="note">
+              <span>
+                ESP32: si la consola se queda en «Connecting…», mantén pulsado el botón <b>BOOT</b> de la placa hasta que empiece a escribir. Recuerda que el PCA9685 debe tener su VCC en <b>3V3</b>, no en 5 V.
+              </span>
+            </div>
+          )}
         </div>
       ),
-      checks: ['Robot sostenido en el soporte o alimentación de servos desconectada.', 'Monitor Serie de Arduino IDE cerrado.'],
+      checks: ['Robot sostenido en el soporte o alimentación de servos desconectada.', 'Monitor Serie de Arduino IDE cerrado.', ...(mismatch ? [`Confirmo que la placa conectada es un ${board?.label}.`] : [])],
       confirmLabel: 'Subir',
     });
     if (!ok) return;
     try {
       client.markUploading();
       const r = await service.api<{ job: JobInfo }>('/api/upload', { method: 'POST', body: { buildId: build.build.id, contentHash: active.hash, fqbn, port } });
-      useEditor.getState().setJob(r.job);
+      trackJob(r.job);
     } catch (e) {
       toast((e as Error).message, 'error');
       useEditor.getState().log('stderr', (e as Error).message + '\n');
@@ -395,8 +426,9 @@ export function EditorPanel({ onCollapse }: { onCollapse?: () => void }) {
 
   const install = async (what: 'install-core' | 'install-lib' | 'update-index') => {
     try {
-      const r = await service.api<{ job: JobInfo }>('/api/tools/install', { method: 'POST', body: { what } });
-      useEditor.getState().setJob(r.job);
+      // El core y el índice dependen de la placa elegida (el del ESP32 usa un índice adicional).
+      const r = await service.api<{ job: JobInfo }>('/api/tools/install', { method: 'POST', body: { what, core: boardCore?.id } });
+      trackJob(r.job);
     } catch (e) {
       toast((e as Error).message, 'error');
     }
@@ -507,7 +539,14 @@ export function EditorPanel({ onCollapse }: { onCollapse?: () => void }) {
           </button>
         </div>
         <div className="toolbar build-tools">
-          <select className="field" style={{ width: 128 }} value={fqbn} onChange={(e) => useEditor.getState().setFqbn(e.target.value)} aria-label="Placa">
+          <select
+            className="field"
+            style={{ width: 128 }}
+            value={fqbn}
+            onChange={(e) => useEditor.getState().setFqbn(e.target.value)}
+            aria-label="Placa"
+            title={`Placa para compilar y subir: ${board?.label ?? fqbn}. Cambiarla deja obsoleta la compilación anterior.`}
+          >
             {BOARDS.map((b) => (
               <option key={b.fqbn} value={b.fqbn}>
                 {b.label}
@@ -558,6 +597,15 @@ export function EditorPanel({ onCollapse }: { onCollapse?: () => void }) {
               {active.ficha}
             </Disclosure>
           )}
+          {board?.family === 'esp32' && (
+            <Disclosure className="ficha" icon={<IInfo size={13} />} summary="ESP32: conexión y carga" meta="3,3 V · GPIO21/22">
+              <b>Cableado:</b> PCA9685 SDA → GPIO21, SCL → GPIO22, GND común y <b>VCC del PCA9685 al pin 3V3</b> del ESP32 (sus pines no toleran 5 V). La potencia de los servos (V+) va aparte, como hasta ahora.
+              <br />
+              <b>Carga:</b> necesita el core <span className="mono">esp32:esp32</span> (botón en «Diagnóstico Arduino CLI»; es una descarga grande y la primera compilación tarda varios minutos). Si no conecta, mantén pulsado <b>BOOT</b>.
+              <br />
+              <b>Uso:</b> el mismo protocolo y los mismos controles que con el UNO, por USB a 115200 baudios. WiFi y Bluetooth todavía no se usan.
+            </Disclosure>
+          )}
           {!serviceUp && (
             <Disclosure className="ficha" icon={<IInfo size={13} />} summary="Servicio local no disponible" meta="Compilar y Subir desactivados">
               Puedes editar, abrir y descargar sketches. <b>Compilar y Subir</b> requieren ejecutar <span className="mono">INICIAR_DOGBOT.bat</span> en la computadora Windows (Arduino CLI).
@@ -591,20 +639,31 @@ export function EditorPanel({ onCollapse }: { onCollapse?: () => void }) {
               </div>
               {tools ? (
                 <div className="list">
-                  {[tools.cli, tools.core, tools.lib].map((c, i) => (
+                  {[tools.cli, tools.lib].map((c, i) => (
                     <div key={i} className="tool-line" style={{ color: c.ok ? 'var(--ok)' : 'var(--warn)' }}>
                       {c.ok ? <ICheck size={12} /> : <IError size={12} />} {c.detail}
                     </div>
                   ))}
+                  {tools.cores.map((c) => {
+                    // Sólo hace falta el core de la placa elegida: los demás se muestran sin alarma.
+                    const needed = c.id === boardCore?.id;
+                    return (
+                      <div key={c.id} className="tool-line" style={{ color: c.ok ? 'var(--ok)' : needed ? 'var(--warn)' : 'var(--muted)' }}>
+                        {c.ok ? <ICheck size={12} /> : needed ? <IError size={12} /> : <IInfo size={12} />} {c.detail}
+                        {!c.ok && !needed ? ' · no hace falta para la placa elegida' : ''}
+                      </div>
+                    );
+                  })}
                   <div className="hint mono">{tools.cliPath}</div>
                   {tools.cli.ok && (
                     <div className="row">
                       <button className="btn xs" onClick={() => install('update-index')} disabled={!!job}>
                         Actualizar índice
                       </button>
-                      {!tools.core.ok && (
-                        <button className="btn xs" onClick={() => install('install-core')} disabled={!!job}>
-                          Instalar core arduino:avr
+                      {boardCore && tools.cores.some((c) => c.id === boardCore.id && !c.ok) && (
+                        <button className="btn xs" onClick={() => install('install-core')} disabled={!!job} title={boardCore.heavy ? 'Descarga grande (cientos de MB): puede tardar bastante' : undefined}>
+                          Instalar core {boardCore.id}
+                          {boardCore.heavy ? ' (descarga grande)' : ''}
                         </button>
                       )}
                       {!tools.lib.ok && (

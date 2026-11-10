@@ -1,11 +1,22 @@
 /*
   DogBotDashboard.ino — Firmware NUEVO para "Dog Bot Control"
   ===========================================================
-  Placa: Arduino UNO (ATmega328P) + PCA9685 en 0x40, PWM 50 Hz.
-  Protocolo: DOGBOT v1 (ver docs/PROTOCOLO.md). 115200 baudios, líneas ASCII.
+  Placas: Arduino UNO (ATmega328P) o ESP32 (DevKit / WROOM-32), con un
+  PCA9685 en 0x40, PWM 50 Hz. El mismo archivo sirve para las dos: elige la
+  placa en el editor del dashboard (o en Arduino IDE) antes de compilar.
+  Protocolo: DOGBOT v1 (ver docs/PROTOCOLO.md). 115200 baudios, líneas ASCII
+  por el USB de la placa. El protocolo es idéntico en ambas.
 
-  ESTADO: PENDIENTE DE VALIDACIÓN FÍSICA. Compilado y probado sólo en
-  software (arnés de pruebas en PC). No se ha cargado en el robot.
+  ESTADO: PENDIENTE DE VALIDACIÓN FÍSICA. Probado sólo en software (arnés de
+  pruebas en PC, variantes UNO y ESP32). No se ha cargado en el robot. La
+  variante ESP32 no se ha compilado todavía con el core real de Espressif.
+
+  ESP32 (ver docs/ESP32.md):
+    - I2C en GPIO21 (SDA) y GPIO22 (SCL); se cambian con DOGBOT_SDA/DOGBOT_SCL.
+    - El ESP32 trabaja a 3,3 V y sus pines NO toleran 5 V: alimenta el VCC
+      (lógica) del PCA9685 desde el pin 3V3 del ESP32, nunca desde 5 V. La
+      potencia de los servos (V+) sigue yendo aparte, con GND común.
+    - Por ahora el enlace es sólo el USB. WiFi y Bluetooth no se usan.
 
   NO sustituye ni modifica los sketches históricos:
     - CAMINATA_FLUIDA_PROBADA.ino, CAMINATA_2_0_EXPERIMENTAL.ino,
@@ -41,13 +52,32 @@
 #include <Wire.h>
 #include <Adafruit_PWMServoDriver.h>
 
-#define FW_VERSION "0.1.0"
+#define FW_VERSION "0.2.0"
 #define PROTO_VERSION 1
+
+// Placa para la que se compila. Se informa en HELLO (mcu=).
+#if defined(ESP32)
+#define MCU_NAME "ESP32"
+// Pines I2C del ESP32 hacia el PCA9685. Cámbialos aquí si usas otros GPIO.
+#ifndef DOGBOT_SDA
+#define DOGBOT_SDA 21
+#endif
+#ifndef DOGBOT_SCL
+#define DOGBOT_SCL 22
+#endif
+#elif defined(ARDUINO_AVR_UNO)
+#define MCU_NAME "UNO"
+#elif defined(__AVR__)
+#define MCU_NAME "AVR"
+#else
+#define MCU_NAME "OTRA"
+#endif
 
 const uint8_t MAX_CH = 12;          // 12 servos previstos: canales 0..11
 const uint16_t ABS_MIN = 500;       // banda eléctrica de comandos
 const uint16_t ABS_MAX = 2500;
-const uint8_t LINE_MAX = 63;        // caracteres por línea (sin '\n')
+// (No llamarla LINE_MAX: en el ESP32 ese nombre ya es una macro de <limits.h>.)
+const uint8_t LINE_LEN = 63;        // caracteres por línea (sin '\n')
 const uint8_t MAX_TOK = 16;
 const uint16_t TICK_MS = 20;        // periodo de actualización de servos
 const uint16_t CAL_MAX_STEP = 50;   // µs máximos por orden en modo CAL
@@ -87,7 +117,7 @@ uint16_t slewPerTick = 20;          // 20 µs / 20 ms = 1000 µs/s
 uint16_t sessionId = 0;
 uint16_t bootId = 0;
 
-char line[LINE_MAX + 1];
+char line[LINE_LEN + 1];
 uint8_t lineLen = 0;
 bool lineOverflow = false;
 bool lineBadChar = false;
@@ -102,6 +132,8 @@ int freeRam() {
   extern int __heap_start, *__brkval;
   int v;
   return (int)&v - (__brkval == 0 ? (int)&__heap_start : (int)__brkval);
+#elif defined(ESP32)
+  return (int)ESP.getFreeHeap();  // memoria dinámica libre (cientos de kB)
 #else
   return -1;  // arnés de pruebas en PC: no aplica
 #endif
@@ -247,6 +279,7 @@ void cmdHello(uint16_t id) {
   Serial.print(CAL_MAX_STEP);
   Serial.print(F(" fr="));
   Serial.print(freeRam());
+  Serial.print(F(" mcu=" MCU_NAME));
   Serial.println();
 }
 
@@ -498,7 +531,7 @@ void readSerial() {
       lineBadChar = true;
       continue;
     }
-    if (lineLen < LINE_MAX) line[lineLen++] = c;
+    if (lineLen < LINE_LEN) line[lineLen++] = c;
     else lineOverflow = true;
   }
 }
@@ -546,7 +579,11 @@ void checkLink(uint32_t now) {
 
 void setup() {
   Serial.begin(115200);
+#if defined(ESP32)
+  Wire.begin(DOGBOT_SDA, DOGBOT_SCL);
+#else
   Wire.begin();
+#endif
   pcaAllOff();  // antes de begin(): evita salidas previas a 1 kHz
   pwm.begin();
   pwm.setPWMFreq(50);
@@ -557,11 +594,21 @@ void setup() {
     ch[i].flags = 0;
     ch[i].moveId = 0;
   }
+#if defined(ESP32)
+  // Sin randomSeed(), random() usa el generador por hardware del ESP32.
+  bootId = (uint16_t)random(1, 65536);
+#else
   uint16_t seed = (uint16_t)micros();
   for (uint8_t a = 0; a < 4; a++) seed = (seed << 3) ^ (seed >> 5) ^ (uint16_t)analogRead(A0 + a);
   bootId = seed ? seed : 1;
+#endif
   lastRx = millis();
   lastTick = millis();
+#if defined(ESP32)
+  // El cargador de arranque del ESP32 escribe su propio texto por este mismo
+  // puerto: BOOT empieza siempre en una línea nueva.
+  Serial.println();
+#endif
   Serial.print(F("BOOT DOGBOT proto="));
   Serial.print(PROTO_VERSION);
   Serial.print(F(" fw=" FW_VERSION " boot="));

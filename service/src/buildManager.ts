@@ -7,21 +7,15 @@
 //    actual (si se editó, la compilación es OBSOLETA), misma placa y binario
 //    presente. Se sube con --input-dir: nunca se recompila ni se sube otro.
 //  - Antes de cargar se libera el COM; después se reabre si estaba abierto.
+//  - El binario depende de la placa: .hex en AVR (UNO), .bin en ESP32.
 
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { EventEmitter } from 'node:events';
-import {
-  BuildRecord,
-  JobInfo,
-  JobKind,
-  REQUIRED_CORE,
-  REQUIRED_LIB,
-  buildKey,
-  isValidSketchName,
-} from '../../shared/serviceApi';
-import { ALLOWED_FQBN, compileArgs, diagnoseUpload, parseSizes, uploadArgs } from './arduinoCli';
+import { CORES, boardByFqbn, coreById, coreOfBoard } from '../../shared/boards';
+import { BuildRecord, JobInfo, JobKind, REQUIRED_LIB, buildKey, isValidSketchName } from '../../shared/serviceApi';
+import { ALLOWED_FQBN, binaryName, compileArgs, coreArgs, diagnoseCompile, diagnoseUpload, parseSizes, uploadArgs } from './arduinoCli';
 import { CommandRunner } from './runner';
 import { safeJoin } from './paths';
 
@@ -151,8 +145,12 @@ export class BuildManager extends EventEmitter {
       log('info', `Instantánea guardada (sha256 ${rec.contentHash.slice(0, 12)}…). Placa ${rec.fqbn}.\n`);
       const args = compileArgs(rec.fqbn, buildPath, rec.outDir, rec.sketchDir);
       log('info', `> arduino-cli ${args.map((a) => (a.includes(' ') ? `"${a}"` : a)).join(' ')}\n`);
+      const board = boardByFqbn(rec.fqbn);
+      const heavy = coreOfBoard(rec.fqbn)?.heavy ?? false;
+      if (heavy) log('info', 'La primera compilación para esta placa compila todo el core y puede tardar varios minutos.\n');
       const r = await this.o.runner.run(this.o.cliPath(), args, {
-        timeoutMs: this.o.compileTimeoutMs ?? 300_000,
+        // El core del ESP32 es grande: la primera compilación puede tardar mucho más que en AVR.
+        timeoutMs: this.o.compileTimeoutMs ?? (heavy ? 1_200_000 : 300_000),
         onStdout: (t) => log('stdout', t),
         onStderr: (t) => log('stderr', t),
       });
@@ -162,17 +160,25 @@ export class BuildManager extends EventEmitter {
         this.finishJob(job, false, 'Arduino CLI no disponible', null, this.publicBuild(rec));
         return;
       }
-      const hex = path.join(rec.outDir, `${rec.sketchName}.ino.hex`);
-      const ok = r.code === 0 && !r.timedOut && fs.existsSync(hex);
+      const binName = binaryName(rec.sketchName, rec.fqbn);
+      const bin = path.join(rec.outDir, binName);
+      const ok = r.code === 0 && !r.timedOut && fs.existsSync(bin);
       Object.assign(rec, parseSizes(r.stdout + '\n' + r.stderr));
       rec.exitCode = r.code;
       rec.state = ok ? 'ok' : 'error';
-      if (r.code === 0 && !fs.existsSync(hex)) log('stderr', 'Arduino CLI terminó sin error pero no se encontró el binario .hex esperado.\n');
-      const summary = ok
+      if (r.code === 0 && !fs.existsSync(bin)) log('stderr', `Arduino CLI terminó sin error pero no se encontró el binario esperado (${binName}).\n`);
+      let summary = ok
         ? `Compilación correcta${rec.flashBytes !== null ? ` · flash ${rec.flashBytes}/${rec.flashMax} B · RAM global ${rec.ramBytes}/${rec.ramMax} B` : ''}`
         : r.timedOut
           ? 'Compilación cancelada por tiempo excedido'
           : `Error de compilación (código ${r.code})`;
+      if (!ok && !r.timedOut) {
+        const d = diagnoseCompile(r.stdout + '\n' + r.stderr, board);
+        if (d) {
+          log('info', `Diagnóstico: ${d}\n`);
+          summary += ' · ' + d;
+        }
+      }
       this.finishJob(job, ok, summary, r.code, this.publicBuild(rec));
     } catch (e) {
       rec.state = 'error';
@@ -188,7 +194,7 @@ export class BuildManager extends EventEmitter {
     if (b.state !== 'ok') throw new JobError('La última compilación falló: no se sube ningún binario.');
     if (b.contentHash !== currentHash) throw new JobError('Compilación OBSOLETA: el código cambió después de compilar. Vuelve a compilar.');
     if (b.fqbn !== fqbn) throw new JobError('La placa seleccionada no coincide con la de la compilación.');
-    if (!fs.existsSync(path.join(b.outDir, `${b.sketchName}.ino.hex`))) throw new JobError('No se encuentra el binario de esa compilación.');
+    if (!fs.existsSync(path.join(b.outDir, binaryName(b.sketchName, b.fqbn)))) throw new JobError('No se encuentra el binario de esa compilación.');
     return b;
   }
 
@@ -217,7 +223,7 @@ export class BuildManager extends EventEmitter {
       const ok = r.code === 0 && !r.spawnError && !r.timedOut;
       let summary = ok ? 'Carga terminada. Verifica el protocolo del nuevo firmware antes de usar los controles.' : `Error de carga (código ${r.code ?? '—'})`;
       if (!ok) {
-        const d = r.spawnError ? 'No se pudo ejecutar Arduino CLI: ' + r.spawnError : diagnoseUpload(r.stdout + '\n' + r.stderr);
+        const d = r.spawnError ? 'No se pudo ejecutar Arduino CLI: ' + r.spawnError : diagnoseUpload(r.stdout + '\n' + r.stderr, boardByFqbn(b.fqbn));
         if (d) {
           log('info', `Diagnóstico: ${d}\n`);
           summary += ' · ' + d;
@@ -235,19 +241,22 @@ export class BuildManager extends EventEmitter {
     }
   }
 
-  install(kind: 'install-core' | 'install-lib' | 'update-index'): JobInfo {
-    const args =
-      kind === 'update-index'
-        ? ['core', 'update-index']
-        : kind === 'install-core'
-          ? ['core', 'install', REQUIRED_CORE]
-          : ['lib', 'install', REQUIRED_LIB];
-    const title = kind === 'update-index' ? 'Actualizar índice de placas' : kind === 'install-core' ? `Instalar core ${REQUIRED_CORE}` : `Instalar biblioteca ${REQUIRED_LIB}`;
+  /**
+   * Instala un core o la biblioteca, o actualiza el índice de placas.
+   * `coreId` debe ser un core del catálogo (por defecto, el de AVR): nunca se
+   * pasa texto libre a Arduino CLI.
+   */
+  install(kind: 'install-core' | 'install-lib' | 'update-index', coreId: string = CORES[0].id): JobInfo {
+    const core = coreById(coreId);
+    if (!core) throw new JobError('Core no permitido: ' + coreId);
+    const args = kind === 'update-index' ? coreArgs('update-index', core) : kind === 'install-core' ? coreArgs('install', core) : ['lib', 'install', REQUIRED_LIB];
+    const title = kind === 'update-index' ? 'Actualizar índice de placas' : kind === 'install-core' ? `Instalar core ${core.id}` : `Instalar biblioteca ${REQUIRED_LIB}`;
     const job = this.startJob(kind, title);
     const log = this.logger(job);
     log('info', `> arduino-cli ${args.join(' ')}\n`);
+    if (kind === 'install-core' && core.heavy) log('info', 'Este core es una descarga grande (cientos de MB): puede tardar bastante según la conexión.\n');
     void this.o.runner
-      .run(this.o.cliPath(), args, { timeoutMs: 600_000, onStdout: (t) => log('stdout', t), onStderr: (t) => log('stderr', t) })
+      .run(this.o.cliPath(), args, { timeoutMs: core.heavy ? 2_700_000 : 600_000, onStdout: (t) => log('stdout', t), onStderr: (t) => log('stderr', t) })
       .then((r) => {
         const ok = r.code === 0 && !r.spawnError;
         this.finishJob(job, ok, ok ? 'Instalación terminada' : `Error (código ${r.code ?? '—'}) ${r.spawnError ?? ''}`, r.code);

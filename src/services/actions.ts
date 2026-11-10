@@ -157,7 +157,7 @@ export async function switchMode(mode: 'sim' | 'real') {
       h(
         'div',
         { className: 'note warn' },
-        'Abrir el puerto COM suele REINICIAR el Arduino UNO. Si la placa tiene cargado CAMINATA_FLUIDA_PROBADA o CAMINATA_2_0, su setup() moverá los servos por su cuenta. Comprueba qué firmware está cargado.',
+        'Abrir el puerto COM REINICIA el Arduino UNO (un ESP32 puede reiniciarse o no). Si la placa tiene cargado CAMINATA_FLUIDA_PROBADA o CAMINATA_2_0, su setup() moverá los servos por su cuenta. Comprueba qué firmware está cargado.',
       ),
     ),
     confirmLabel: 'Entrar en modo ROBOT REAL',
@@ -170,7 +170,7 @@ export async function switchMode(mode: 'sim' | 'real') {
 export async function connect() {
   const s = st();
   if (!s.link.serviceAvailable) {
-    toast('Servicio local no disponible: inicia INICIAR_DOGBOT.bat en la computadora con el Arduino.', 'error');
+    toast('Servicio local no disponible: inicia INICIAR_DOGBOT.bat en la computadora donde está conectada la placa.', 'error');
     return;
   }
   if (!s.link.port) {

@@ -82,7 +82,7 @@ export function TopBar({ editorOpen, onToggleEditor }: { editorOpen?: boolean; o
             {link.ports.map((p) => (
               <option key={p.path} value={p.path}>
                 {p.path}
-                {p.likelyArduino ? ' · Arduino' : ''}
+                {p.hint ? ` · ${p.hint}` : ''}
               </option>
             ))}
           </select>
@@ -93,7 +93,7 @@ export function TopBar({ editorOpen, onToggleEditor }: { editorOpen?: boolean; o
             disabled={!link.serviceAvailable || open}
             onChange={(e) => setLink({ baud: Number(e.target.value) })}
             aria-label="Baudios"
-            title="115200 = firmware DogBotDashboard · 9600 = sketches históricos"
+            title="115200 = firmware DogBotDashboard (UNO y ESP32) · 9600 = sketches históricos"
           >
             {[115200, 57600, 9600].map((b) => (
               <option key={b} value={b}>
@@ -154,7 +154,7 @@ export function TopBar({ editorOpen, onToggleEditor }: { editorOpen?: boolean; o
           <IChip size={15} color="var(--muted)" className="tb-wide" />
           <div style={{ minWidth: 0 }}>
             <div className="tb-value mono tb-ellipsis">
-              {real ? (link.firmware ? `UNO · ${link.firmware.dev} fw ${link.firmware.fw} · p${link.firmware.proto}` : open ? 'Firmware sin identificar' : 'Sin conexión') : 'Arduino UNO · simulado'}
+              {real ? (link.firmware ? `${link.firmware.mcu ?? 'Placa'} · ${link.firmware.dev} fw ${link.firmware.fw} · p${link.firmware.proto}` : open ? 'Firmware sin identificar' : 'Sin conexión') : 'Controlador simulado'}
             </div>
             <div className="tb-sub tb-wide tb-ellipsis">{real ? (link.firmware ? `boot ${link.firmware.boot} · RAM libre ${link.firmware.freeRam ?? '—'} B` : 'PCA9685 0x40 · 50 Hz') : 'sin hardware'}</div>
           </div>

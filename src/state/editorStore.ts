@@ -1,6 +1,7 @@
 // Documentos del editor y su relación con compilaciones (instantáneas).
 import { create } from 'zustand';
-import { BuildRecord, DEFAULT_FQBN, JobInfo, SketchSource } from '../../shared/serviceApi';
+import { BuildRecord, JobInfo, SketchSource } from '../../shared/serviceApi';
+import { DEFAULT_FQBN, boardByFqbn } from '../../shared/boards';
 import { load, save } from './persist';
 
 export type DocSource = SketchSource | 'local' | 'nuevo';
@@ -48,6 +49,8 @@ interface EditorState {
 
 let lineId = 1;
 const stored = load<{ docs: EditorDoc[]; activeId: string | null } | null>('editor', null);
+// Placa elegida (UNO o ESP32): se recuerda entre sesiones; si no es del catálogo, UNO.
+const storedBoard = load<string | null>('board', null);
 
 function persist(docs: EditorDoc[], activeId: string | null) {
   // Guarda borradores (para no perder cambios al recargar). Límite prudente.
@@ -59,7 +62,7 @@ export const useEditor = create<EditorState>((set, get) => ({
   docs: stored?.docs ?? [],
   activeId: stored?.activeId ?? null,
   builds: {},
-  fqbn: DEFAULT_FQBN,
+  fqbn: storedBoard && boardByFqbn(storedBoard) ? storedBoard : DEFAULT_FQBN,
   console: [],
   job: null,
   open: (d) => {
@@ -104,5 +107,9 @@ export const useEditor = create<EditorState>((set, get) => ({
   },
   clearConsole: () => set({ console: [] }),
   setJob: (j) => set({ job: j }),
-  setFqbn: (f) => set({ fqbn: f }),
+  setFqbn: (f) => {
+    if (!boardByFqbn(f)) return;
+    save('board', f);
+    set({ fqbn: f });
+  },
 }));

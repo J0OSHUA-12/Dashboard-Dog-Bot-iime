@@ -1,7 +1,8 @@
 // Propietario único del puerto COM.
 //  - Una sola conexión abierta; cola corta; STOP/OFF (prioridad) vacían lo pendiente.
 //  - Diagnósticos útiles si otra aplicación (Arduino IDE / Monitor Serie) ocupa el puerto.
-//  - Al abrir, el Arduino UNO suele reiniciarse por DTR: la interfaz espera BOOT.
+//  - Al abrir, el Arduino UNO se reinicia por DTR; un ESP32 puede no reiniciarse.
+//    La interfaz espera BOOT y, si no llega, identifica el firmware igualmente.
 
 import { EventEmitter } from 'node:events';
 import { PortInfo, SerialStatus } from '../../shared/serviceApi';
@@ -14,6 +15,8 @@ export interface PortLike {
   on(ev: 'data', fn: (d: Buffer) => void): unknown;
   on(ev: 'close', fn: (err?: Error | null) => void): unknown;
   on(ev: 'error', fn: (err: Error) => void): unknown;
+  /** Líneas de control (DTR/RTS). Opcional: los puertos simulados no la tienen. */
+  set?(opts: { dtr?: boolean; rts?: boolean }, cb?: (err: Error | null) => void): void;
   isOpen: boolean;
 }
 
@@ -35,12 +38,23 @@ export function diagnoseOpenError(msg: string): string {
   if (/file not found|no such file|cannot find|not found|enoent/.test(m)) {
     return 'El puerto no existe. ¿Se desconectó la placa? Actualiza la lista de puertos.';
   }
-  return 'No se pudo abrir el puerto. Revisa el cable, el driver (CH340 en clones) y que el puerto sea el correcto.';
+  return 'No se pudo abrir el puerto. Revisa el cable, el driver (CH340 o CP210x según la placa) y que el puerto sea el correcto.';
 }
 
-export function isLikelyArduino(vendorId: string | null, manufacturer: string | null): boolean {
+/**
+ * Pista sobre la placa según el adaptador USB. Es orientativa: los chips
+ * CH340, CP210x y FTDI se usan tanto en clones de Arduino como en ESP32, así
+ * que solo se nombra una placa cuando el fabricante USB es inequívoco.
+ */
+export function boardHint(vendorId: string | null, manufacturer: string | null): string | null {
   const v = (vendorId ?? '').toLowerCase();
-  return v === '2341' || v === '2a03' || v === '1a86' || v === '0403' || /arduino|wch|ch340/i.test(manufacturer ?? '');
+  const m = manufacturer ?? '';
+  if (v === '2341' || v === '2a03' || /arduino/i.test(m)) return 'Arduino';
+  if (v === '303a' || /espressif/i.test(m)) return 'ESP32';
+  if (v === '10c4' || /silicon lab|cp210/i.test(m)) return 'CP210x';
+  if (v === '1a86' || /wch|ch340|ch910/i.test(m)) return 'CH340';
+  if (v === '0403' || /ftdi/i.test(m)) return 'FTDI';
+  return null;
 }
 
 export class SerialManager extends EventEmitter {
@@ -83,6 +97,16 @@ export class SerialManager extends EventEmitter {
     this.port = port;
     this.queue = [];
     this.rxBuf = '';
+    // DTR y RTS en el mismo estado. En Windows el puerto se abre con DTR activo y
+    // RTS inactivo; en las placas ESP32 esa combinación mantiene GPIO0 a nivel
+    // bajo, y un reinicio (botón EN, caída de tensión) las dejaría en modo de
+    // carga en vez de ejecutar el firmware. Con ambas activas arrancan normal.
+    // El UNO no usa RTS y DTR ya estaba activo, así que para él no cambia nada.
+    try {
+      port.set?.({ dtr: true, rts: true }, () => undefined);
+    } catch {
+      /* adaptadores sin líneas de control: no es un error */
+    }
     port.on('data', (d: Buffer) => this.onData(d));
     port.on('error', (e: Error) => {
       this.setStatus({ state: 'error', error: e.message, diagnostic: diagnoseOpenError(e.message) });

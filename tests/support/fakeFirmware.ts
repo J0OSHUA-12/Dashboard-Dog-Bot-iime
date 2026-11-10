@@ -6,6 +6,9 @@ export class FakeFirmware {
   out: (line: string) => void = () => undefined;
   received: { line: string; priority: boolean }[] = [];
   proto = 1;
+  fw = '0.2.0';
+  /** Placa informada en HELLO. null imita al firmware 0.1.x, que no enviaba mcu=. */
+  mcu: string | null = 'UNO';
   boot = 'A1B2';
   armed = false;
   silent = false;
@@ -23,7 +26,7 @@ export class FakeFirmware {
     this.lim.clear();
     this.enabled.clear();
     this.cur.clear();
-    this.reply(`BOOT DOGBOT proto=${this.proto} fw=0.1.0 boot=${this.boot}`);
+    this.reply(`BOOT DOGBOT proto=${this.proto} fw=${this.fw} boot=${this.boot}`);
   }
 
   receive(line: string, priority: boolean) {
@@ -35,7 +38,7 @@ export class FakeFirmware {
     const n = (i: number) => Number(t[i]);
     switch (cmd) {
       case 'HELLO':
-        return this.reply(`OK ${id} HELLO dev=DOGBOT proto=${this.proto} fw=0.1.0 boot=${this.boot} ses=${t[2] ?? 0} ch=12 calstep=50 fr=1100`);
+        return this.reply(`OK ${id} HELLO dev=DOGBOT proto=${this.proto} fw=${this.fw} boot=${this.boot} ses=${t[2] ?? 0} ch=12 calstep=50 fr=${this.mcu === 'ESP32' ? 287654 : 1100}${this.mcu ? ` mcu=${this.mcu}` : ''}`);
       case 'LIMIT': {
         const [c, a, b, d] = [n(2), n(3), n(4), n(5)];
         if (c > 11) return this.reply(`ER ${id} CHANNEL canal`);

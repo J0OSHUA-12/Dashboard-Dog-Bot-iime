@@ -17,19 +17,25 @@
 | D11 | Modelo 3D **paramétrico** (mm editables) | No hay CAD. Las fotos permiten aproximar la apariencia, no las medidas |
 | D12 | Ángulo **estimado** con 2000 µs / 180° y signos del dossier, editable | Sin calibrar no se atribuyen grados físicos |
 | D13 | Reconexión con el firmware ya armado → STOP sin cortar PWM | No soltar un robot que podría estar sosteniendo peso, ni reenviar consignas viejas |
+| D15 | **Un solo firmware para UNO y ESP32**, con `#if defined(ESP32)` y el mismo protocolo | El ESP32 abre la puerta a WiFi/Bluetooth sin rehacer nada: interfaz, perfiles, límites y paradas no cambian. Las placas admitidas viven en un catálogo (`shared/boards.ts`) que usan la interfaz y el servicio |
+| D16 | Con ESP32 el enlace sigue siendo **solo USB** por ahora | La app móvil es una etapa posterior. Añadir radio exige decidir antes seguridad y pérdida de enlace |
+| D17 | Al abrir el puerto se dejan **DTR y RTS en el mismo estado** | En Windows el puerto se abre con DTR activo y RTS inactivo, combinación que en un ESP32 mantiene GPIO0 a nivel bajo: un reinicio lo dejaría en modo de carga. El UNO no usa RTS |
 | D14 | Vite 7 / Vitest 4 en lugar de las versiones mayores más recientes | Esas versiones fallaban con `npm ci` (bug de árbol de dependencias de npm 10) y `@codemirror/language` 6.13.0 venía sin una dependencia, así que se fijó en 6.12.4 |
 
 ## Estado actual
 
 - **Hecho (software):** interfaz completa en simulación, servicio local, firmware nuevo
   compilable y probado en arnés, perfiles y calibración, poses, secuencia suspendida,
-  telemetría honesta, registros, documentación y 66 pruebas automáticas.
+  telemetría honesta, registros, documentación y 93 pruebas automáticas. Soporte de ESP32
+  además del UNO (firmware 0.2.0), probado en software.
 - **No hecho (físico):** todo lo de [PRUEBAS.md § pendientes](PRUEBAS.md#pruebas-físicas-pendientes-no-realizadas).
+- **No hecho (ESP32):** compilar con el core real de Espressif y todo lo físico. Ver
+  [ESP32.md](ESP32.md#pruebas-físicas-pendientes-con-esp32).
 - **Datos que faltan** (no bloquean el software): límites y sentidos por canal;
   izquierda/derecha de las patas; mapeo posterior; longitudes, masas y CAD; reguladores;
   C-rate y tensión bajo carga; temperaturas; sensores instalados.
 
-## Hacia cuatro patas operativas (Arduino UNO)
+## Hacia cuatro patas operativas (UNO o ESP32)
 
 1. Calibrar los seis canales delanteros y exportar el perfil `v1` con sus ensayos.
 2. Resolver la potencia trasera: caracterizar el segundo regulador y distribuir positivos
@@ -42,6 +48,13 @@
    pasos. Registrar cada avance real sin llamar éxito a una animación.
 6. El UNO tiene margen de RAM (≈1,2 kB libres) para 12 canales. Si se añaden sensores, medir
    la RAM de nuevo (`fr=` en `STATUS`).
+
+## ESP32 y app en el celular (futuro)
+
+El dashboard ya controla un ESP32 por USB. El siguiente paso, cuando toque, es que el ESP32
+hable DOGBOT v1 también por Bluetooth LE o WiFi y que una app móvil use el mismo cliente de
+protocolo. Está descrito en [ESP32.md](ESP32.md#hacia-la-app-en-el-celular-futuro-no-implementado).
+No es requisito para esta etapa.
 
 ## Raspberry Pi 4 (futuro)
 

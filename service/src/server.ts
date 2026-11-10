@@ -143,7 +143,8 @@ export function createServer(d: ServerDeps) {
       const b = (await readBody(req)) as Record<string, unknown>;
       const what = b.what;
       if (what !== 'install-core' && what !== 'install-lib' && what !== 'update-index') throw new JobError('Instalación desconocida');
-      return sendJson(res, 200, { job: d.builds.install(what) });
+      const core = b.core === undefined ? undefined : str(b.core, 'core');
+      return sendJson(res, 200, { job: d.builds.install(what, core) });
     }
     return sendJson(res, 404, { error: 'No encontrado' });
   }

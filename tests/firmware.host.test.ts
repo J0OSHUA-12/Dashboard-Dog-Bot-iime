@@ -8,7 +8,15 @@ import path from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
 
 const root = path.resolve(__dirname, '..');
-const exe = path.join(os.tmpdir(), `dogbot-fw-host-${process.pid}${process.platform === 'win32' ? '.exe' : ''}`);
+// El MISMO .ino se compila dos veces: como lo vería el UNO y como lo vería el
+// ESP32 (-DESP32 activa sus ramas: pines I2C, memoria libre, id de arranque).
+// Así toda la batería de pruebas cubre las dos variantes del firmware.
+const VARIANTS = [
+  { mcu: 'UNO', flag: '-DARDUINO_AVR_UNO' },
+  { mcu: 'ESP32', flag: '-DESP32' },
+];
+const exeFor = (mcu: string) => path.join(os.tmpdir(), `dogbot-fw-host-${process.pid}-${mcu}${process.platform === 'win32' ? '.exe' : ''}`);
+let exe = '';
 let hasCompiler = true;
 try {
   execFileSync('g++', ['--version'], { stdio: 'ignore' });
@@ -28,15 +36,27 @@ function pwm(lines: string[], idx = -1): Record<string, string> {
   return Object.fromEntries(l.split(' ').slice(1).map((p) => p.split(':')));
 }
 
-describe.skipIf(!hasCompiler)('firmware DogBotDashboard (arnés en PC)', () => {
+describe.skipIf(!hasCompiler).each(VARIANTS)('firmware DogBotDashboard (arnés en PC, variante $mcu)', ({ mcu, flag }) => {
   beforeAll(() => {
-    execFileSync('g++', ['-std=c++17', '-I', path.join(root, 'firmware/pruebas_host'), path.join(root, 'firmware/pruebas_host/harness.cpp'), '-o', exe]);
+    exe = exeFor(mcu);
+    execFileSync('g++', ['-std=c++17', '-Wall', '-Wextra', '-Werror', flag, '-I', path.join(root, 'firmware/pruebas_host'), path.join(root, 'firmware/pruebas_host/harness.cpp'), '-o', exe]);
     expect(fs.existsSync(exe)).toBe(true);
+  });
+
+  it('se identifica con la placa para la que se compiló', () => {
+    const out = run(['> 1 HELLO 4711']);
+    const hello = out.find((l) => l.startsWith('OK 1 HELLO'))!;
+    expect(hello).toMatch(new RegExp(`^OK 1 HELLO dev=DOGBOT proto=1 fw=0\\.2\\.0 boot=[0-9A-F]{4} ses=4711 ch=12 calstep=50 fr=-?\\d+ mcu=${mcu}$`));
+    // UNO: pines I2C fijos de la placa. ESP32: GPIO21/22 pedidos de forma explícita.
+    expect(out).toContain(mcu === 'ESP32' ? '# i2c sda=21 scl=22' : '# i2c sda=-1 scl=-1');
+    // En el ESP32 la memoria libre es el heap (cientos de kB); el arnés no la mide en el UNO.
+    expect(Number(/fr=(-?\d+)/.exec(hello)![1])).toBe(mcu === 'ESP32' ? 287654 : -1);
   });
 
   it('arranca sin mover nada: todos los canales en full OFF y desarmado', () => {
     const out = run(['p', '> 1 STATUS']);
-    expect(out[0]).toMatch(/^BOOT DOGBOT proto=1 fw=0\.1\.0 boot=[0-9A-F]{4}$/);
+    expect(out[0]).toMatch(/^BOOT DOGBOT proto=1 fw=0\.2\.0 boot=[0-9A-F]{4}$/);
+    expect(out[0]).not.toMatch(/boot=0000/);
     expect(out).toContain('# allOffWrites=1');
     expect(Object.values(pwm(out)).every((v) => v === 'off')).toBe(true);
     expect(out.find((l) => l.startsWith('OK 1 STATUS'))).toMatch(/arm=0 .*en=0000/);

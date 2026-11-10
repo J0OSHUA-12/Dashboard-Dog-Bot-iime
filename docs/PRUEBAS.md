@@ -1,15 +1,16 @@
 # Pruebas hechas y pruebas físicas pendientes
 
-Fecha: 3 de noviembre de 2026. Todo se desarrolló y comprobó en un entorno Linux en la nube,
-**sin el robot, sin Arduino y sin Windows**.
+Fechas: 3 de noviembre de 2026 (versión inicial) y 10 de noviembre de 2026 (soporte de ESP32,
+filas 13 a 16). Todo se desarrolló y comprobó en un entorno Linux en la nube, **sin el robot,
+sin Arduino, sin ESP32 y sin Windows**.
 
 ## Comprobaciones realizadas (software)
 
 | # | Comprobación | Cómo | Resultado |
 |---|---|---|---|
 | 1 | Tipos TypeScript (interfaz, servicio, núcleo, pruebas) | `npm run typecheck` | Sin errores |
-| 2 | Pruebas automáticas | `npm test` (Vitest, 66 pruebas) | Todas pasan |
-| 3 | Firmware compila para ATmega328P | avr-gcc 7.3 + ArduinoCore-avr 1.8.x + Adafruit PWM 3.0.3 + BusIO, `-Wall -Wextra` | 13 920 B flash (42,5 %), 838 B RAM estática (40,9 %), sin advertencias |
+| 2 | Pruebas automáticas | `npm test` (Vitest, 93 pruebas) | Todas pasan |
+| 3 | Firmware 0.2.0 compila para ATmega328P | avr-gcc 7.3 + ArduinoCore-avr + Adafruit PWM 3.0.3 + BusIO, `-Wall -Wextra` | 13 950 B flash (43,2 %), 838 B RAM estática (40,9 %), sin advertencias. Son 16 B más de flash que la 0.1.0 con el mismo compilador |
 | 4 | Los tres sketches originales compilan (sin modificarse) | Mismo toolchain | Compilan; hashes SHA-256 iguales a `INTEGRIDAD_ORIGINALES.json` |
 | 5 | Firmware real ejecutado en la PC (arnés) | `tests/firmware.host.test.ts` | Arranque sin movimiento, rechazos (`STATE`, `ORDER`, `CHANNEL`, `RANGE`, `NOLIMIT`, `DISABLED`, `UNKNOWN`, `SYNTAX`, `ARGS`), STOP a mitad de trayectoria, slew, modo CAL, pérdida de enlace HOLD y OFF, heartbeat, desbordamiento, bytes corruptos, OFF y DISARM |
 | 6 | Cliente de protocolo con **firmware simulado** | `tests/protocolClient.test.ts` | Solo identifica al conectar; consolida 300 movimientos de slider en ≤ 2 órdenes; STOP y OFF con prioridad; reinicio → desarmado sin reenvío; reconexión sin reproducir consignas; firmware ya armado → STOP sin cortar PWM; líneas corruptas; timeouts → fallo; heartbeat |
@@ -19,6 +20,15 @@ Fecha: 3 de noviembre de 2026. Todo se desarrolló y comprobó en un entorno Lin
 | 10 | Modelo 3D | `tests/model.test.ts` | Los 12 controles giran solo su pivote; la rodilla gira sobre su eje; abducción hacia afuera en ambos lados; signos de los canales 0, 1 y 2 según el dossier; la fórmula de la secuencia fluida coincide con el sketch y respeta límites |
 | 11 | Flujo completo ROBOT REAL con **puerto virtual** | socat (PTY) ↔ firmware ejecutado en la PC ↔ servicio ↔ navegador (Playwright) | Conectar → `Compatible · desarmado` → armar en calibración → habilitar canal 1 → pasos hasta 1600 µs con `PW` reales → DETENER (Esc) → PWM OFF (0 canales). Sin errores de consola |
 | 12 | Revisión visual | Capturas con Chromium a 1366×768, 1920×1080 y 390×844 | Paneles sin solaparse con controles ni registros; pestañas inferiores en ventanas estrechas |
+| 13 | Firmware real en la PC, **variante ESP32** | `tests/firmware.host.test.ts` compila el mismo `.ino` con `-DESP32` (y `-Wall -Wextra -Werror`) y repite toda la batería de la fila 5 | Pasa igual que la variante UNO; se identifica con `mcu=ESP32`, pide I²C en GPIO21/22 e informa el heap libre |
+| 14 | Funciones del core del ESP32 que usa el firmware | Contrastadas con el código fuente de `arduino-esp32` (rama principal, 9-nov-2026): `Wire.begin(sda, scl)`, `ESP.getFreeHeap()`, `random()` por hardware, `F()`/`PSTR`/`strcmp_P`, sobrecargas de `Serial.print` y `write` | Existen con esas firmas. **No sustituye a compilar** |
+| 14b | Choques de nombres con macros del ESP32 | Todos los identificadores del firmware cruzados con las 40 673 macros de 784 cabeceras reales (core `arduino-esp32`, biblioteca C `newlib-esp32`, parte de ESP-IDF y las bibliotecas Adafruit) | **Encontró un error real:** la constante `LINE_MAX` del firmware 0.1.0 es una macro de `<limits.h>` en el ESP32 y no habría compilado. Renombrada a `LINE_LEN`; ya no hay choques. El arnés ESP32 reproduce ahora esas macros y falla con el código anterior |
+| 15 | Compilación, carga e instalación de core para ESP32 con **Arduino CLI simulado** | `tests/service.test.ts` | Binario `.bin`; tamaños del ESP32; binario de una placa no se sube como otra; diagnóstico del botón BOOT y del core sin instalar; instalación con argumentos fijos; core fuera del catálogo rechazado; DTR y RTS iguales al abrir |
+| 16 | Flujo completo con un **ESP32 virtual** | socat (PTY) ↔ firmware en la PC (variante ESP32, con el texto de arranque de un ESP32) ↔ servicio ↔ navegador (Playwright), con Arduino CLI simulado | Elegir ESP32 → falta el core → instalarlo → compilar → conectar → `ESP32 · DOGBOT fw 0.2.0`, `Compatible · desarmado` → subir → reidentificación. Con el ESP32 conectado, subir un binario de UNO muestra el aviso y bloquea hasta confirmar. Sin errores de consola |
+
+**Lo que NO se pudo hacer para el ESP32:** compilar el firmware con el core real de Espressif.
+El entorno de desarrollo no tiene acceso a las descargas de Arduino CLI ni del compilador del
+ESP32. La primera compilación real será en Windows.
 
 ## Pruebas físicas pendientes (no realizadas)
 
@@ -42,5 +52,7 @@ Hazlas en orden, con el robot **sostenido** y anotando cada una en *Registro de 
 9. **Secuencia «Ensayo suspendido · delanteras»** con perfil calibrado y amplitud baja.
 10. **Mediciones** de tensión y corriente con instrumento externo, registradas aparte.
 
+Con un ESP32 hay además una lista propia: [ESP32.md](ESP32.md#pruebas-físicas-pendientes-con-esp32).
+
 Hasta completar estas pruebas: **no se afirma** que la app funcione en Windows, que el
-firmware nuevo controle el robot, ni que el Dog Bot se sostenga o camine.
+firmware nuevo controle el robot (con UNO o con ESP32), ni que el Dog Bot se sostenga o camine.

@@ -3,8 +3,7 @@
 export const SERVICE_PORT = 5178;
 export const SERVICE_VERSION = '0.1.0';
 export const TOKEN_HEADER = 'x-dogbot-token';
-export const DEFAULT_FQBN = 'arduino:avr:uno';
-export const REQUIRED_CORE = 'arduino:avr';
+export { DEFAULT_FQBN } from './boards';
 export const REQUIRED_LIB = 'Adafruit PWM Servo Driver Library';
 
 export interface PortInfo {
@@ -13,7 +12,10 @@ export interface PortInfo {
   vendorId: string | null;
   productId: string | null;
   serialNumber: string | null;
-  likelyArduino: boolean;
+  /** El adaptador USB parece el de una placa (Arduino, ESP32 o un USB-serie típico). */
+  likelyBoard: boolean;
+  /** Pista para el selector de puertos; orientativa, nunca una identificación. */
+  hint: string | null;
 }
 
 export type SerialState = 'cerrado' | 'abriendo' | 'abierto' | 'error' | 'liberado-para-carga';
@@ -31,11 +33,18 @@ export interface ToolCheck {
   detail: string;
 }
 
+export interface CoreStatus extends ToolCheck {
+  /** Identificador de plataforma, p. ej. arduino:avr o esp32:esp32. */
+  id: string;
+  version: string | null;
+}
+
 export interface ToolsStatus {
   checkedAt: string;
   cliPath: string;
   cli: ToolCheck & { version: string | null };
-  core: ToolCheck & { version: string | null };
+  /** Un elemento por core del catálogo (shared/boards.ts). Solo hace falta el de tu placa. */
+  cores: CoreStatus[];
   lib: ToolCheck & { version: string | null };
   missing: string[];
   boards: { port: string; name: string | null; fqbn: string | null }[];

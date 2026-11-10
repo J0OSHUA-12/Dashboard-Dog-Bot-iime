@@ -1,6 +1,8 @@
 # Protocolo serie DOGBOT v1
 
 Entre la PC (servicio local + interfaz) y `firmware/DogBotDashboard/DogBotDashboard.ino`.
+El protocolo es **el mismo en Arduino UNO y en ESP32**; las diferencias de cada placa están en
+[ESP32.md](ESP32.md).
 
 - **Enlace:** USB/COM, **115200 baudios**, 8N1. Líneas ASCII imprimibles terminadas en `\n`
   (se ignora `\r`).
@@ -11,8 +13,9 @@ Entre la PC (servicio local + interfaz) y `firmware/DogBotDashboard/DogBotDashbo
   - `ER <id> <CÓDIGO> [detalle]`: orden rechazada. El id es 0 si la línea no se pudo
     interpretar.
 - **Mensajes espontáneos:**
-  - `BOOT DOGBOT proto=1 fw=0.1.0 boot=XXXX`: se emite al arrancar. `boot` es un id aleatorio
-    por arranque.
+  - `BOOT DOGBOT proto=1 fw=0.2.0 boot=XXXX`: se emite al arrancar. `boot` es un id aleatorio
+    por arranque. Un ESP32 escribe antes unas líneas de su cargador de arranque, que se
+    ignoran.
   - `EV DONE id=<id>`: todas las articulaciones del `MOVE <id>` llegaron a su consigna. No se
     emite si otra orden reemplazó a ese `MOVE`.
   - `EV LINKLOST llp=HOLD|OFF`: el firmware detectó pérdida de enlace.
@@ -23,7 +26,7 @@ Entre la PC (servicio local + interfaz) y `firmware/DogBotDashboard/DogBotDashbo
 
 | Comando | Argumentos | Efecto | Requisitos |
 |---|---|---|---|
-| `HELLO` | `[sesión]` | Identificación: `dev proto fw boot ses ch calstep fr` | — |
+| `HELLO` | `[sesión]` | Identificación: `dev proto fw boot ses ch calstep fr mcu` | — |
 | `STATUS` | — | `arm mode lim en mv ll llp llms slew rpt up fr` (máscaras hex por canal) | — |
 | `LIMIT` | `ch min ref max` | Límites del canal (µs). Exige `500 ≤ min < ref < max ≤ 2500` | Canal deshabilitado |
 | `ARM` | — | Permite habilitar canales. Borra el estado de enlace perdido. **No mueve nada** | — |
@@ -46,9 +49,9 @@ rechazan, no se recortan.** Un `MOVE` con un solo par inválido no se aplica en 
 ## Secuencia típica
 
 ```text
-(abrir COM: el UNO suele reiniciarse)
-BOOT DOGBOT proto=1 fw=0.1.0 boot=93AF
-1 HELLO 4711                         -> OK 1 HELLO dev=DOGBOT proto=1 fw=0.1.0 boot=93AF ses=4711 ch=12 calstep=50 fr=…
+(abrir COM: el UNO se reinicia; un ESP32 puede no hacerlo, y entonces no hay BOOT)
+BOOT DOGBOT proto=1 fw=0.2.0 boot=93AF
+1 HELLO 4711                         -> OK 1 HELLO dev=DOGBOT proto=1 fw=0.2.0 boot=93AF ses=4711 ch=12 calstep=50 fr=… mcu=UNO
 2 STATUS                             -> OK 2 STATUS arm=0 … en=0000 …
 3 LINK 1500 HOLD / 4 RATE 250 / 5 SLEW 20 / 6 MODE CAL
 7 LIMIT 1 1300 1500 1700             -> OK 7 LIMIT ch=1
@@ -58,6 +61,11 @@ BOOT DOGBOT proto=1 fw=0.1.0 boot=93AF
 11 HB (cada 500 ms mientras está armado)
 12 STOP  /  13 OFF ALL  /  14 DISARM
 ```
+
+`mcu=` es la placa para la que se compiló el firmware: `UNO`, `ESP32`, `AVR` (otra placa AVR)
+u `OTRA`. Existe desde el firmware 0.2.0; con el 0.1.0, que no lo envía, la interfaz muestra
+«Placa» y todo lo demás funciona igual. `fr=` es la RAM libre: alrededor de 1,2 kB en el UNO y
+cientos de kB (heap) en el ESP32.
 
 ## Reglas de la PC
 
@@ -80,8 +88,8 @@ BOOT DOGBOT proto=1 fw=0.1.0 boot=93AF
 - 115200 baudios ≈ 11,5 kB/s. En una secuencia física, la PC envía un `MOVE` de 6 canales
   (~50 bytes) cada 100 ms (~0,5 kB/s), más `HB` cada 500 ms y `PW` cada 250 ms (~60 bytes):
   menos del 10 % del enlace.
-- RAM estática del firmware: **838 B de 2048** (avr-gcc 7.3, core 1.8.x, Adafruit PWM
-  3.0.3). La biblioteca reserva además un objeto pequeño en el heap. `HELLO` y `STATUS`
+- RAM estática del firmware: **838 B de 2048**, y 13 950 B de flash (avr-gcc 7.3, core
+  AVR, Adafruit PWM 3.0.3). En el ESP32 la memoria no es una restricción práctica. La biblioteca reserva además un objeto pequeño en el heap. `HELLO` y `STATUS`
   informan la RAM libre real (`fr=`).
 - Sin `String` ni JSON. Parser incremental con búfer de 64 bytes y como máximo 64 bytes
   atendidos por ciclo.

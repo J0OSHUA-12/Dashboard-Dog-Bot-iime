@@ -18,7 +18,7 @@ export const ORIGINAL_FICHAS: Record<string, string> = {
 };
 
 export const FIRMWARE_FICHA =
-  'Firmware NUEVO del dashboard (protocolo DOGBOT v1, 115200 baudios). Compilado sólo en software; PENDIENTE DE VALIDACIÓN FÍSICA. Arranca sin mover nada.';
+  'Firmware NUEVO del dashboard (protocolo DOGBOT v1, 115200 baudios). El mismo archivo sirve para Arduino UNO y para ESP32: elige la placa antes de compilar. Probado sólo en software; PENDIENTE DE VALIDACIÓN FÍSICA. Arranca sin mover nada.';
 
 export class SketchStore {
   constructor(private p: AppPaths) {}
