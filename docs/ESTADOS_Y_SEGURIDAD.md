@@ -9,7 +9,7 @@
 
 Al pasar a simulación hay que desarmar primero. El puerto se cierra al cambiar.
 
-## Estados del enlace (barra superior)
+## Estados del enlace (barra superior y panel «Conectar»)
 
 `Desconectado → Identificando firmware → Compatible · desarmado ⇄ Armado`, y además
 `Firmware desconocido`, `Firmware incompatible`, `Enlace perdido (firmware)`,
@@ -38,16 +38,16 @@ Al pasar a simulación hay que desarmar primero. El puerto se cierra al cambiar.
   Los canales sin banda o sin canal se omiten y el diálogo dice por qué.
 - **PWM OFF** (algún canal con señal; muestra cuántos): `OFF ALL` inmediato, sin diálogo.
 
-### Cerrar el programa
+### Salir del programa
 
-El botón **Cerrar** (icono de salida, arriba a la derecha) pide confirmación y entonces detiene
+El botón **Salir** (icono de salida, arriba a la derecha) pide confirmación y entonces detiene
 la secuencia, desarma (corta PWM) si el robot estaba armado, libera el puerto COM y apaga el
 servicio local; la ventana de `INICIAR_DOGBOT.bat` se cierra sola. Se rechaza mientras haya una
 compilación o carga en curso. Para volver a usarlo, ejecuta otra vez `INICIAR_DOGBOT.bat`.
 
 ### Modo claro / oscuro
 
-El botón con el sol / la luna, junto a «Cerrar», alterna entre ambos temas. La preferencia se
+El botón con el sol / la luna, junto a «Salir», alterna entre ambos temas. La preferencia se
 guarda en el navegador.
 
 ## Pérdida de enlace (configurable en Perfil → Enlace)

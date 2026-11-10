@@ -1,5 +1,4 @@
 import { ReactNode, useEffect, useMemo, useRef, useState } from 'react';
-import { ALL_JOINTS, jointLabel } from '../../shared/joints';
 import { DOSSIER_MEASUREMENTS, PHYSICAL_SIGNALS, SOURCE_LABEL, VALIDITY_LABEL, validityFor } from '../../shared/telemetry';
 import { BottomTab, EventEntry, TestRecord, uid, useApp } from '../state/store';
 import { allSeries, getSeries } from '../state/series';
@@ -9,14 +8,15 @@ import { client } from '../services/robotLink';
 import { ChartSeries, LineChart } from './Chart';
 import { toast } from './Dialog';
 import { HelpTip } from './Disclosure';
-import { IAlert, IBattery, IChevron, IDownload, IError, IGauge, IInfo, ICheck, IThermo, ITrash } from './icons';
+import { IAlert, IBattery, IChevron, IClipboard, IDownload, IError, IGauge, IInfo, ICheck, IList, IPulse, IRuler, ITerminal, IThermo, ITrash } from './icons';
 
-const TABS: [BottomTab, string][] = [
-  ['telemetria', 'Telemetría'],
-  ['eventos', 'Eventos'],
-  ['serie', 'Monitor serie'],
-  ['ensayos', 'Registro de ensayos'],
-  ['mediciones', 'Mediciones'],
+// [pestaña, rótulo, rótulo corto para barras estrechas, icono]
+const TABS: [BottomTab, string, string, ReactNode][] = [
+  ['telemetria', 'Telemetría', 'Telemetría', <IPulse key="i" size={14} />],
+  ['eventos', 'Eventos', 'Eventos', <IList key="i" size={14} />],
+  ['serie', 'Monitor serie', 'Serie', <ITerminal key="i" size={14} />],
+  ['ensayos', 'Registro de ensayos', 'Ensayos', <IClipboard key="i" size={14} />],
+  ['mediciones', 'Mediciones', 'Medidas', <IRuler key="i" size={14} />],
 ];
 
 function fmtTime(at: number) {
@@ -53,7 +53,7 @@ function lastValue(space: 'sim' | 'real', id: string): number | null {
 }
 
 // Diseño por excepción: canales en gris; sólo el canal seleccionado en ámbar.
-const CH_DIM = '#4b505c';
+const CH_DIM = '#7d6f64';
 const CH_SEL = '#ffb15c';
 
 function Telemetry() {
@@ -606,43 +606,79 @@ function Measurements() {
   );
 }
 
-export function BottomPanel({ onCollapse }: { onCollapse?: () => void }) {
+/**
+ * Información y registros. `dock` (HUD de escritorio): barra flotante de pestañas en la base;
+ * el contenido se despliega al pulsar una pestaña y se pliega al volver a pulsarla.
+ * Sin `dock` (ventanas estrechas): panel completo con las pestañas arriba.
+ */
+export function BottomPanel({ dock, resizer }: { dock?: boolean; resizer?: ReactNode }) {
   const tab = useApp((s) => s.ui.bottomTab);
+  const stored = useApp((s) => s.ui.bottomOpen);
   const setUi = useApp((s) => s.setUi);
   const mode = useApp((s) => s.mode);
   const errors = useApp((s) => s.events.filter((e) => e.level === 'error').length);
-  return (
-    <section className="bottom" aria-label="Información y registros">
-      <div className="tabs">
-        {TABS.map(([k, l]) => (
-          <button key={k} className={tab === k ? 'on' : ''} onClick={() => setUi({ bottomTab: k })}>
-            {l}
-            {k === 'eventos' && errors > 0 && (
-              <span className="tag err count">
-                {errors}
+  const open = dock ? stored : true;
+  const content = (
+    <div className="fill" role="tabpanel" id="data-panel">
+      {tab === 'telemetria' && <Telemetry />}
+      {tab === 'eventos' && <Events />}
+      {tab === 'serie' && <SerialMonitor />}
+      {tab === 'ensayos' && <Tests />}
+      {tab === 'mediciones' && <Measurements />}
+    </div>
+  );
+  const tabs = (
+    <div className="tabs" role="tablist" aria-label="Datos y registros">
+      {TABS.map(([k, l, short, icon]) => {
+        const on = open && tab === k;
+        return (
+          <button
+            key={k}
+            role="tab"
+            aria-selected={on}
+            aria-controls={open ? 'data-panel' : undefined}
+            className={on ? 'on' : ''}
+            title={dock ? l : undefined}
+            onClick={() => setUi(dock ? (on ? { bottomOpen: false } : { bottomOpen: true, bottomTab: k }) : { bottomTab: k })}
+          >
+            {dock && icon}
+            <span className="tab-label">{l}</span>
+            {dock && (
+              <span className="tab-short" aria-hidden="true">
+                {short}
               </span>
             )}
+            {k === 'eventos' && errors > 0 && <span className="tag err count">{errors}</span>}
           </button>
-        ))}
-        <span className="spacer" />
-        {mode === 'sim' && <span className="tag sim">DATOS SIMULADOS</span>}
-        <button className="btn xs ghost" onClick={exportSession} title="Exportar sesión (eventos y series, con modo y fuente)">
-          <IDownload size={11} /> Sesión CSV
+        );
+      })}
+      <span className="spacer" />
+      {mode === 'sim' && <span className="tag sim dock-extra">DATOS SIMULADOS</span>}
+      <button className="btn xs ghost" onClick={exportSession} title="Exportar sesión (eventos y series, con modo y fuente)" aria-label="Exportar sesión en CSV">
+        <IDownload size={11} /> <span className="dock-extra">Sesión CSV</span>
+      </button>
+      {dock && open && (
+        <button className="btn xs ghost icon" onClick={() => setUi({ bottomOpen: false })} title="Plegar panel de datos" aria-label="Plegar panel de datos">
+          <IChevron dir="down" size={13} />
         </button>
-        {onCollapse && (
-          <button className="btn xs ghost icon" onClick={onCollapse} title="Plegar panel inferior" aria-label="Plegar panel inferior">
-            <IChevron dir="down" size={13} />
-          </button>
-        )}
-      </div>
-      <div className="fill">
-        {tab === 'telemetria' && <Telemetry />}
-        {tab === 'eventos' && <Events />}
-        {tab === 'serie' && <SerialMonitor />}
-        {tab === 'ensayos' && <Tests />}
-        {tab === 'mediciones' && <Measurements />}
-      </div>
-      {false && ALL_JOINTS.map((j) => jointLabel(j))}
+      )}
+    </div>
+  );
+  if (dock) {
+    return (
+      <section className={`bottom data-dock ${open ? 'open' : ''}`} aria-label="Información y registros">
+        <div className="dock-body">
+          {open && resizer}
+          {open && content}
+        </div>
+        {tabs}
+      </section>
+    );
+  }
+  return (
+    <section className="bottom" aria-label="Información y registros">
+      {tabs}
+      {content}
     </section>
   );
 }

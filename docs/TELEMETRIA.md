@@ -13,7 +13,7 @@ muestra como «Sin sensor», «No disponible» o «Sin datos», **nunca como cer
 | Temperaturas | **No** | — | «Sin sensor» |
 | IMU / contacto / equilibrio | **No** | — | «No disponible» |
 | RTT del enlace | Sí (armado) | Medido por la PC con `HB` | Gráfica en ROBOT REAL |
-| RAM libre del firmware | Sí | `HELLO` / `STATUS` | Barra superior |
+| RAM libre del firmware | Sí | `HELLO` / `STATUS` | Panel «Conectar» |
 
 En **SIMULACIÓN** aparecen gráficas de tensión y corriente **sintéticas**, con el rótulo
 SIMULADO siempre visible. Viven en un espacio de datos separado y nunca se mezclan con datos
@@ -32,7 +32,7 @@ reales.
 - **Mediciones**: tus lecturas manuales, separadas del **histórico del dossier**. El histórico
   conserva sus condiciones: 0,41 A y 7,02 V con 6 servos suspendidos; ≥ 1 A accionando el
   canal 1 bajo carga parcial, probablemente midiendo el banco completo.
-- **Sesión CSV** (botón en el panel inferior): eventos y series con
+- **Sesión CSV** (botón en la barra de pestañas de datos): eventos y series con
   `timestamp, modo, tipo, canal_o_señal, valor, fuente, validez, detalle`.
 
 ## Sensores futuros (trabajo aparte, no implementado)

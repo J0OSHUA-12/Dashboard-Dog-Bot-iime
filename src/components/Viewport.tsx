@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { jointLabel, JOINT_DESCRIPTION, jointKind } from '../../shared/joints';
 import { estimatedAngleDeg, getJoint, isCalibrated } from '../../shared/profile';
 import { getSequence } from '../../shared/sequences';
-import { realDisplayUs, useApp } from '../state/store';
-import { DogBotScene, ViewName } from '../three/Scene';
+import { realDisplayUs, UiState, useApp } from '../state/store';
+import { DogBotScene, SceneInsets, ViewName } from '../three/Scene';
 import { IAlert, IChevron, IInfo, ITarget } from './icons';
 
 let sceneRef: DogBotScene | null = null;
@@ -11,7 +11,24 @@ export function getScene() {
   return sceneRef;
 }
 
-function Kpis() {
+export const VIEWS: [ViewName, string][] = [
+  ['iso', 'Isométrica'],
+  ['frontal', 'Frontal'],
+  ['lateral', 'Lateral'],
+  ['superior', 'Superior'],
+];
+
+type LayerKey = 'showCover' | 'showGrid' | 'showAxes' | 'showLabels' | 'showGhost';
+export const LAYERS: [LayerKey, string][] = [
+  ['showCover', 'Tapa'],
+  ['showGrid', 'Rejilla'],
+  ['showAxes', 'Ejes'],
+  ['showLabels', 'Etiquetas'],
+  ['showGhost', 'Objetivo'],
+];
+
+/** Indicadores del sistema. En el HUD van en la franja inferior; en móvil, sobre el visor. */
+export function Kpis({ className = 'kpis' }: { className?: string }) {
   const mode = useApp((s) => s.mode);
   const profile = useApp((s) => s.profile);
   const link = useApp((s) => s.link);
@@ -21,7 +38,7 @@ function Kpis() {
   const calibrated = profile.joints.filter(isCalibrated).length;
   const seqDef = seq.id ? getSequence(seq.id) : null;
   return (
-    <div className="kpis" role="group" aria-label="Indicadores">
+    <div className={className} role="group" aria-label="Indicadores">
       <div className="kpi">
         <div className="k">Articulaciones</div>
         <div className="v">
@@ -67,7 +84,7 @@ function SelectionCard() {
   const ang = us !== null ? estimatedAngleDeg(cfg, us) : null;
   return (
     <div className="sel-card" aria-live="polite">
-      <div style={{ fontWeight: 650, marginBottom: 4, display: 'flex', justifyContent: 'space-between' }}>
+      <div className="sel-head">
         {jointLabel(selected)}
         <span className={`ch ${cfg.canalEstado === 'probado' ? 'tested' : cfg.canal === null ? 'none' : ''}`}>{cfg.canal === null ? 'sin canal' : `CH ${cfg.canal}`}</span>
       </div>
@@ -111,11 +128,41 @@ function SelChip() {
   );
 }
 
-export function Viewport() {
-  const host = useRef<HTMLDivElement>(null);
-  const params = useApp((s) => s.modelParams);
+/** Vistas predefinidas de la cámara. */
+export function ViewPresets({ className }: { className: string }) {
+  return (
+    <>
+      {VIEWS.map(([v, l]) => (
+        <button key={v} className={className} onClick={() => sceneRef?.setView(v)}>
+          {l}
+        </button>
+      ))}
+    </>
+  );
+}
+
+/** Capas del visor (tapa, rejilla de calibración, ejes, etiquetas y pose objetivo). */
+export function LayerToggles({ className, activeClass, idleClass = '' }: { className: string; activeClass: string; idleClass?: string }) {
   const ui = useApp((s) => s.ui);
   const setUi = useApp((s) => s.setUi);
+  return (
+    <>
+      {LAYERS.map(([k, l]) => (
+        <button key={k} className={`${className} ${ui[k] ? activeClass : idleClass}`} onClick={() => setUi({ [k]: !ui[k] } as Partial<UiState>)} aria-pressed={ui[k]}>
+          {l}
+        </button>
+      ))}
+    </>
+  );
+}
+
+/**
+ * Visor 3D. Con `hud` sólo dibuja el lienzo y los avisos propios del modelo: indicadores,
+ * vistas y capas los coloca el HUD de escritorio. `insets` = espacio que tapan los paneles.
+ */
+export function Viewport({ hud, insets }: { hud?: boolean; insets?: SceneInsets }) {
+  const host = useRef<HTMLDivElement>(null);
+  const params = useApp((s) => s.modelParams);
   const mode = useApp((s) => s.mode);
   const link = useApp((s) => s.link);
 
@@ -131,21 +178,17 @@ export function Viewport() {
   useEffect(() => {
     sceneRef?.setParams(params);
   }, [params]);
+  const { left = 0, right = 0, top = 0, bottom = 0 } = insets ?? {};
+  useEffect(() => {
+    sceneRef?.setInsets({ left, right, top, bottom });
+  }, [left, right, top, bottom]);
 
-  const view = (v: ViewName) => sceneRef?.setView(v);
-  const toggles: [keyof typeof ui, string][] = [
-    ['showCover', 'Tapa'],
-    ['showGrid', 'Rejilla'],
-    ['showAxes', 'Ejes'],
-    ['showLabels', 'Etiquetas'],
-    ['showGhost', 'Objetivo'],
-  ];
   const unknownPose = mode === 'real' && link.enabled.length === 0;
   const [noteOpen, setNoteOpen] = useState(false);
 
   return (
-    <div className="viewport" ref={host}>
-      <Kpis />
+    <div className={`viewport ${hud ? 'hud-view' : ''}`} ref={host}>
+      {!hud && <Kpis />}
       <div className="sim-banner">
         {mode === 'sim' ? <span className="tag sim">SIMULACIÓN · sin hardware</span> : <span className="tag real">ROBOT REAL · pose = consigna, no medición</span>}
         <SelChip />
@@ -163,38 +206,34 @@ export function Viewport() {
               <b>Dimensiones pendientes.</b> Ángulos estimados desde µs (sin calibrar). No es un simulador dinámico: no modela contacto, equilibrio ni torque.
             </span>
             <span>D1/D2/P1/P2: ubicación izquierda/derecha convencional, no confirmada en el robot.</span>
+            <span>El terreno es un escenario visual; los anillos y la regla del suelo sí están a escala del modelo.</span>
           </div>
         )}
-        <button className="view-note-toggle" onClick={() => setNoteOpen((v) => !v)} aria-expanded={noteOpen} aria-controls="view-note-body">
-          <IInfo size={12} /> Modelo aproximado
-          <span className="disclosure-chev" style={{ transform: noteOpen ? 'rotate(-90deg)' : 'rotate(90deg)' }}>
-            <IChevron size={11} />
-          </span>
-        </button>
-      </div>
-      <div className="view-tools" role="toolbar" aria-label="Vista 3D">
-        {(
-          [
-            ['iso', 'Isométrica'],
-            ['frontal', 'Frontal'],
-            ['lateral', 'Lateral'],
-            ['superior', 'Superior'],
-          ] as [ViewName, string][]
-        ).map(([v, l]) => (
-          <button key={v} className="btn xs ghost" onClick={() => view(v)}>
-            {l}
+        <div className="view-note-row">
+          <button className="view-note-toggle" onClick={() => setNoteOpen((v) => !v)} aria-expanded={noteOpen} aria-controls="view-note-body">
+            <IInfo size={12} /> Modelo aproximado
+            <span className="disclosure-chev" style={{ transform: noteOpen ? 'rotate(-90deg)' : 'rotate(90deg)' }}>
+              <IChevron size={11} />
+            </span>
           </button>
-        ))}
-        <button className="btn xs ghost" onClick={() => view('iso')} title="Restaurar cámara">
-          Restaurar
-        </button>
-        <span className="tb-sep" />
-        {toggles.map(([k, l]) => (
-          <button key={k} className={`btn xs ${ui[k] ? 'active' : 'ghost'}`} onClick={() => setUi({ [k]: !ui[k] } as Partial<typeof ui>)} aria-pressed={!!ui[k]}>
-            {l}
-          </button>
-        ))}
+          {hud && (
+            <div className="hud-layers" role="toolbar" aria-label="Capas del visor">
+              <span className="hud-label">Capas</span>
+              <LayerToggles className="hud-link" activeClass="on" />
+            </div>
+          )}
+        </div>
       </div>
+      {!hud && (
+        <div className="view-tools" role="toolbar" aria-label="Vista 3D">
+          <ViewPresets className="btn xs ghost" />
+          <button className="btn xs ghost" onClick={() => sceneRef?.setView('iso')} title="Restaurar cámara">
+            Restaurar
+          </button>
+          <span className="tb-sep" />
+          <LayerToggles className="btn xs" activeClass="active" idleClass="ghost" />
+        </div>
+      )}
     </div>
   );
 }
