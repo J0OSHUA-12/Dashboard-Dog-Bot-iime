@@ -234,6 +234,8 @@ export interface SceneEnvironment {
   readonly fog: THREE.Fog;
   setTheme(theme: 'dark' | 'light'): void;
   setFootMark(i: number, x: number, z: number): void;
+  /** Distancia (u) recorrida por el robot en +X: el escenario se desplaza hacia −X. */
+  setTravel(distance: number): void;
   /** Cota del suelo en (x, z): la cámara no baja de ahí. */
   heightAt(x: number, z: number): number;
   update(dt: number): void;

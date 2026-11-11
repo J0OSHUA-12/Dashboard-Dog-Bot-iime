@@ -5,7 +5,25 @@
 // es plana (cota 0); los anillos y la regla sí están a escala (1 u = 100 mm).
 import * as THREE from 'three';
 import { CalibrationOverlay, SceneEnvironment, disposeTree, softDotTexture } from './CalibrationOverlay';
-import { PAD_RADIUS, WORLD_RADIUS, fbm, heightAt, noise2, seededRandom, smoothstep } from './marsTerrain';
+import {
+  FIELD_HALF_Z,
+  FIELD_NX,
+  FIELD_NZ,
+  FIELD_PERIOD,
+  FIELD_STEP,
+  NEAR_FADE_END,
+  NEAR_FADE_START,
+  PAD_BLEND,
+  PAD_RADIUS,
+  WORLD_RADIUS,
+  fbm,
+  heightAt,
+  noise2,
+  seededRandom,
+  smoothstep,
+  staticHeightAt,
+  terrainField,
+} from './marsTerrain';
 
 export type EnvTheme = 'dark' | 'light';
 
@@ -122,6 +140,10 @@ function grainTexture(): THREE.CanvasTexture {
   return t;
 }
 
+/** Semiancho (u) de la franja de rocas y del carril libre por el que avanza el robot. */
+const ROCK_HALF = 110;
+const ROCK_LANE = 3.8;
+
 function rockGeometry(seed: number): THREE.BufferGeometry {
   const g = new THREE.IcosahedronGeometry(1, 2);
   const p = g.attributes.position as THREE.BufferAttribute;
@@ -166,7 +188,8 @@ void main() {
 export class MarsEnvironment implements SceneEnvironment {
   /** Terreno, cielo, rocas y polvo: siempre visibles. */
   readonly world = new THREE.Group();
-  private calib = new CalibrationOverlay(heightAt);
+  // La zona nivelada cubre todos los trazos: van planos aunque el relieve avance por debajo.
+  private calib = new CalibrationOverlay(() => 0);
   /** Trazos de calibración (anillos, rejilla, regla, marcas de pie): capa «Rejilla». */
   readonly overlay = this.calib.group;
   readonly fog: THREE.Fog;
@@ -177,6 +200,17 @@ export class MarsEnvironment implements SceneEnvironment {
   private dust: THREE.Points;
   private dustVel: Float32Array;
   private reducedMotion = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  /** Avance (u) aplicado al relieve, a la textura del suelo y a las rocas. */
+  private travel = 0;
+  private terrainUniforms = {
+    uField: { value: null as THREE.Texture | null },
+    uTravel: { value: 0 },
+    uRust: { value: new THREE.Color(0xa9634a) },
+    uSand: { value: new THREE.Color(0xcf9a74) },
+    uBasalt: { value: new THREE.Color(0x6b4436) },
+  };
+  private grain!: THREE.CanvasTexture;
+  private rocks: { mesh: THREE.InstancedMesh; x: Float32Array; z: Float32Array; scale: Float32Array; quat: THREE.Quaternion[] }[] = [];
   theme: EnvTheme = 'dark';
 
   constructor(private renderer: THREE.WebGLRenderer) {
@@ -248,7 +282,8 @@ export class MarsEnvironment implements SceneEnvironment {
         const x = Math.cos(a) * r;
         const z = Math.sin(a) * r;
         pos[k * 3] = x;
-        pos[k * 3 + 1] = heightAt(x, z);
+        // La geometría guarda sólo el relieve estático; el que avanza lo desplaza el sombreador.
+        pos[k * 3 + 1] = staticHeightAt(x, z);
         pos[k * 3 + 2] = z;
         uv[k * 2] = x / 7;
         uv[k * 2 + 1] = z / 7;
@@ -296,7 +331,59 @@ export class MarsEnvironment implements SceneEnvironment {
 
     const grain = grainTexture();
     grain.anisotropy = Math.min(8, this.renderer.capabilities.getMaxAnisotropy());
+    this.grain = grain;
     const m = new THREE.MeshStandardMaterial({ vertexColors: true, map: grain, bumpMap: grain, bumpScale: 2.2, roughness: 0.97, metalness: 0 });
+
+    // Relieve desplazable: el campo periódico va en una textura (altura, pendientes, tono) y el
+    // sombreador de vértices lo aplica con el avance actual. Coste por fotograma en CPU: ninguno.
+    const src = terrainField().data;
+    const half = new Uint16Array(src.length);
+    for (let i = 0; i < src.length; i++) half[i] = THREE.DataUtils.toHalfFloat(src[i]);
+    const fieldTex = new THREE.DataTexture(half, FIELD_NX, FIELD_NZ, THREE.RGBAFormat, THREE.HalfFloatType);
+    fieldTex.wrapS = THREE.RepeatWrapping;
+    fieldTex.wrapT = THREE.ClampToEdgeWrapping;
+    fieldTex.minFilter = fieldTex.magFilter = THREE.LinearFilter;
+    fieldTex.needsUpdate = true;
+    this.terrainUniforms.uField.value = fieldTex;
+    const f = (n: number) => n.toFixed(4);
+    m.onBeforeCompile = (shader) => {
+      Object.assign(shader.uniforms, this.terrainUniforms);
+      shader.vertexShader = shader.vertexShader
+        .replace(
+          'void main() {',
+          /* glsl */ `uniform sampler2D uField;
+uniform float uTravel;
+uniform vec3 uRust;
+uniform vec3 uSand;
+uniform vec3 uBasalt;
+void main() {`,
+        )
+        .replace(
+          '#include <color_vertex>',
+          /* glsl */ `#include <color_vertex>
+  float tR = length(position.xz);
+  float tNear = 1.0 - smoothstep(${f(NEAR_FADE_START)}, ${f(NEAR_FADE_END)}, tR);
+  float tEnv = smoothstep(${f(PAD_RADIUS)}, ${f(PAD_BLEND)}, tR) * (0.3 + 0.7 * smoothstep(12.0, 80.0, tR)) * tNear;
+  vec4 tF = texture2D(uField, vec2((position.x + uTravel) / ${f(FIELD_PERIOD)} + ${(0.5 / FIELD_NX).toFixed(6)}, ((position.z + ${f(FIELD_HALF_Z)}) / ${f(FIELD_STEP)} + 0.5) / ${f(FIELD_NZ)}));
+  vec3 tN = normalize(vec3(-tEnv * tF.g, 1.0, -tEnv * tF.b));
+  #ifdef USE_COLOR
+    vec3 tC = mix(uRust, uSand, smoothstep(0.35, 0.75, tF.a));
+    tC = mix(tC, uBasalt, (1.0 - smoothstep(0.18, 0.42, tF.a)) * 0.45);
+    tC = mix(tC, uBasalt, (1.0 - smoothstep(0.62, 0.93, tN.y)) * 0.85);
+    vColor.rgb = mix(vColor.rgb, tC, tNear);
+  #endif`,
+        )
+        .replace(
+          '#include <beginnormal_vertex>',
+          /* glsl */ `#include <beginnormal_vertex>
+  objectNormal = normalize(mix(objectNormal, tN, tNear));`,
+        )
+        .replace(
+          '#include <begin_vertex>',
+          /* glsl */ `#include <begin_vertex>
+  transformed.y += tEnv * tF.r;`,
+        );
+    };
     const mesh = new THREE.Mesh(g, m);
     mesh.receiveShadow = true;
     mesh.frustumCulled = false;
@@ -306,31 +393,54 @@ export class MarsEnvironment implements SceneEnvironment {
   private buildRocks() {
     const rnd = seededRandom(2031);
     const tints = [0x8a5a44, 0xa46a4c, 0x74483a, 0xb07a58];
-    const dummy = new THREE.Object3D();
     const color = new THREE.Color();
+    const euler = new THREE.Euler();
     for (let v = 0; v < 3; v++) {
-      const count = 96;
+      const count = 110;
       const mesh = new THREE.InstancedMesh(rockGeometry(v * 13.7 + 1), new THREE.MeshStandardMaterial({ roughness: 0.94, metalness: 0 }), count);
+      const set = { mesh, x: new Float32Array(count), z: new Float32Array(count), scale: new Float32Array(count * 3), quat: [] as THREE.Quaternion[] };
       for (let i = 0; i < count; i++) {
-        // Densidad mayor cerca; nada dentro del área que pisan las patas.
-        const far = rnd() < 0.14;
-        const r = far ? 45 + rnd() * 150 : PAD_RADIUS * 0.8 + Math.pow(rnd(), 1.5) * 52;
-        const a = rnd() * Math.PI * 2;
-        const x = Math.cos(a) * r;
-        const z = Math.sin(a) * r;
-        const s = far ? 1.4 + rnd() * 4 : 0.05 + Math.pow(rnd(), 2.6) * (0.16 + r * 0.03);
-        dummy.position.set(x, heightAt(x, z) + s * 0.12, z);
-        dummy.rotation.set(rnd() * 0.5, rnd() * Math.PI * 2, rnd() * 0.5);
-        dummy.scale.set(s * (0.8 + rnd() * 0.5), s * (0.7 + rnd() * 0.5), s * (0.8 + rnd() * 0.5));
-        dummy.updateMatrix();
-        mesh.setMatrixAt(i, dummy.matrix);
+        // Franja a lo largo de X (el robot avanza por ahí): más densas cerca y ninguna en el
+        // carril que pisan las patas, para que al pasar no atraviesen al robot.
+        const side = rnd() < 0.5 ? -1 : 1;
+        const z = side * (ROCK_LANE + Math.pow(rnd(), 1.7) * (ROCK_HALF - ROCK_LANE));
+        const big = Math.abs(z) > 34 && rnd() < 0.2;
+        const size = big ? 1.4 + rnd() * 4 : 0.05 + Math.pow(rnd(), 2.6) * (0.16 + Math.abs(z) * 0.03);
+        set.x[i] = (rnd() * 2 - 1) * ROCK_HALF;
+        set.z[i] = z;
+        set.scale[i * 3] = size * (0.8 + rnd() * 0.5);
+        set.scale[i * 3 + 1] = size * (0.7 + rnd() * 0.5);
+        set.scale[i * 3 + 2] = size * (0.8 + rnd() * 0.5);
+        set.quat.push(new THREE.Quaternion().setFromEuler(euler.set(rnd() * 0.5, rnd() * Math.PI * 2, rnd() * 0.5)));
         color.setHex(tints[Math.floor(rnd() * tints.length)]).multiplyScalar(0.85 + rnd() * 0.3);
         mesh.setColorAt(i, color);
       }
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       mesh.frustumCulled = false;
+      this.rocks.push(set);
       this.world.add(mesh);
+    }
+    this.placeRocks();
+  }
+
+  /** Recoloca las rocas según el avance: se desplazan con el suelo y reaparecen por delante. */
+  private placeRocks() {
+    const m = new THREE.Matrix4();
+    const pos = new THREE.Vector3();
+    const scl = new THREE.Vector3();
+    const span = ROCK_HALF * 2;
+    for (const set of this.rocks) {
+      for (let i = 0; i < set.x.length; i++) {
+        const x = ((((set.x[i] - this.travel + ROCK_HALF) % span) + span) % span) - ROCK_HALF;
+        const z = set.z[i];
+        // Al entrar y salir de la franja crecen o se hunden en vez de aparecer de golpe.
+        const k = 1 - smoothstep(ROCK_HALF - 18, ROCK_HALF, Math.abs(x));
+        scl.set(set.scale[i * 3] * k, set.scale[i * 3 + 1] * k, set.scale[i * 3 + 2] * k);
+        pos.set(x, heightAt(x, z, this.travel) + scl.y * 0.16, z);
+        set.mesh.setMatrixAt(i, m.compose(pos, set.quat[i], scl));
+      }
+      set.mesh.instanceMatrix.needsUpdate = true;
     }
   }
 
@@ -362,7 +472,16 @@ export class MarsEnvironment implements SceneEnvironment {
   }
 
   heightAt(x: number, z: number) {
-    return heightAt(x, z);
+    return heightAt(x, z, this.travel);
+  }
+
+  setTravel(distance: number) {
+    if (distance === this.travel) return;
+    this.travel = distance;
+    this.terrainUniforms.uTravel.value = distance % FIELD_PERIOD;
+    // La textura de grano (7 u por repetición) acompaña al relieve.
+    this.grain.offset.x = (distance / 7) % 1;
+    this.placeRocks();
   }
 
   setTheme(theme: EnvTheme) {
@@ -409,6 +528,7 @@ export class MarsEnvironment implements SceneEnvironment {
   }
 
   dispose() {
+    this.terrainUniforms.uField.value?.dispose();
     disposeTree(this.world);
     disposeTree(this.overlay);
   }

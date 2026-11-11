@@ -158,3 +158,26 @@ describe('terreno del visor', () => {
     expect(Number.isFinite(heightAt(300, 300))).toBe(true);
   });
 });
+
+describe('terreno que avanza con la caminata', () => {
+  it('la zona nivelada sigue a cota 0 con cualquier avance y el relieve se repite cada periodo', async () => {
+    const { heightAt, PAD_RADIUS, FIELD_PERIOD } = await import('../src/three/marsTerrain');
+    for (const travel of [0, 3.7, 91.2, 1234.5]) {
+      for (let a = 0; a < Math.PI * 2; a += 0.7) expect(heightAt(Math.cos(a) * PAD_RADIUS * 0.99, Math.sin(a) * PAD_RADIUS * 0.99, travel)).toBe(0);
+    }
+    for (const [x, z] of [
+      [30, -12],
+      [-48, 40],
+      [15, 60],
+    ]) {
+      expect(heightAt(x, z, 17.5)).toBeCloseTo(heightAt(x, z, 17.5 + FIELD_PERIOD), 9);
+      // Avanzar d equivale a mirar el relieve d unidades más adelante (lejos de la zona nivelada el envolvente casi no cambia).
+      expect(Math.abs(heightAt(x, z, 5) - heightAt(x, z, 0))).toBeGreaterThan(1e-4);
+    }
+  });
+
+  it('lejos, el horizonte no depende del avance', async () => {
+    const { heightAt } = await import('../src/three/marsTerrain');
+    expect(heightAt(180, 90, 0)).toBe(heightAt(180, 90, 57.3));
+  });
+});

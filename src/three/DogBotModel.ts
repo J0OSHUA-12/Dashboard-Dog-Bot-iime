@@ -19,6 +19,11 @@ export const S = 0.01; // 1 unidad de escena = 100 mm
 
 /** Desplazamiento lateral (mm) del plano medio de la pata respecto al pivote del servo superior. */
 export const LEG_MID = 4;
+/** Centro del pie (mm) respecto a la rodilla, con el tramo inferior vertical: avance y caída extra. */
+export const FOOT_FORWARD = 8;
+export const FOOT_DROP = 2;
+/** Radio (mm) de la esfera del pie. */
+export const FOOT_RADIUS = 7;
 /** Cuerpo del servo de rodilla (mm): ancho × alto a lo largo del muslo × grosor sobre el eje. */
 export const KNEE_SERVO = { w: 40, h: 40, d: 22 } as const;
 
@@ -402,8 +407,8 @@ export class DogBotModel {
     const shin = shinMesh(p.shinLength, 16, redMat);
     shin.position.z = zc * S;
     knee.add(shin);
-    const foot = new THREE.Mesh(new THREE.SphereGeometry(7 * S, 16, 12), mat(COLORS.rubber, { roughness: 0.9 }));
-    foot.position.set(8 * S, -(p.shinLength + 2) * S, zc * S);
+    const foot = new THREE.Mesh(new THREE.SphereGeometry(FOOT_RADIUS * S, 16, 12), mat(COLORS.rubber, { roughness: 0.9 }));
+    foot.position.set(FOOT_FORWARD * S, -(p.shinLength + FOOT_DROP) * S, zc * S);
     foot.castShadow = true;
     knee.add(foot);
     tagJoint(knee, `${leg}-inferior`);
