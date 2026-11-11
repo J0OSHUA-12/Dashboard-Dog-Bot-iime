@@ -31,10 +31,12 @@ modelo). Encima flotan paneles de cristal:
 - **Base**: cápsulas de datos (Telemetría, Eventos, Monitor serie, Registro de ensayos y
   Mediciones) que despliegan su panel al pulsarlas, la franja de indicadores y, en la esquina,
   las vistas de cámara con el dial de órbita y el zoom.
-- **Escenario**: «Marte» o «Hangar» (nave de pruebas con suelo industrial y foco cenital). Se
-  cambia en caliente junto a las capas del visor; ambos son escenarios visuales.
-- **Caminata de reposo**: con PWM apagado y sin control manual, el modelo camina en bucle. Es
-  una animación del visor, no la pose del robot; ver
+- **Escenario**: «Marte» o «Hangar» (taller industrial cálido: suelo de hormigón y chapa
+  estriada, lámparas colgantes, brazo robótico, estanterías y mesas de trabajo). Se cambia en
+  caliente junto a las capas del visor; ambos son escenarios visuales.
+- **Caminata de reposo**: con PWM apagado y sin control manual, el modelo camina en bucle y el
+  escenario avanza a la velocidad de la zancada. Es una animación del visor, no la pose del
+  robot; ver
   [docs/ESTADOS_Y_SEGURIDAD.md](docs/ESTADOS_Y_SEGURIDAD.md).
 
 > `docs/capturas/robot-real-puerto-virtual-1366.jpg` muestra el modo ROBOT REAL con un **puerto

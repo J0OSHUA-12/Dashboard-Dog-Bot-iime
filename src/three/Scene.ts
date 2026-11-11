@@ -4,12 +4,13 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { CSS2DObject, CSS2DRenderer } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
 import { ALL_JOINTS, JointId, LEG_LABEL, LEGS, LegId, jointKind } from '../../shared/joints';
 import { estimatedAngleDeg, getJoint } from '../../shared/profile';
-import { idleWalkActive, idleWalkPose } from '../services/idleWalk';
+import { idleWalkActive } from '../services/idleWalk';
 import { SceneKind, realDisplayUs, useApp } from '../state/store';
 import { DogBotModel, S } from './DogBotModel';
 import { SceneEnvironment } from './CalibrationOverlay';
 import { HangarEnvironment } from './HangarEnvironment';
 import { EnvTheme, MarsEnvironment } from './MarsEnvironment';
+import { GAIT_SPEED, idleGait } from './idleGait';
 import { ModelParams } from './modelParams';
 
 export type ViewName = 'iso' | 'frontal' | 'lateral' | 'superior';
@@ -42,6 +43,8 @@ export class DogBotScene {
   /** Mezcla 0–1 hacia la caminata de reposo y su reloj (ms). */
   private idleK = 0;
   private idleT = 0;
+  /** Distancia (u) recorrida en la caminata de reposo: el escenario se desplaza esa cantidad. */
+  private travel = 0;
   private axes: THREE.AxesHelper;
   private ring: THREE.Mesh;
   private raycaster = new THREE.Raycaster();
@@ -317,6 +320,7 @@ export class DogBotScene {
     this.sceneKind = kind;
     this.env = kind === 'hangar' ? new HangarEnvironment(this.renderer) : new MarsEnvironment(this.renderer);
     this.env.setTheme(this.theme);
+    this.env.setTravel(this.travel);
     this.scene.fog = this.env.fog;
     this.scene.add(this.env.world, this.env.overlay);
   }
@@ -328,8 +332,17 @@ export class DogBotScene {
     const idle = idleWalkActive(s);
     this.idleK += ((idle ? 1 : 0) - this.idleK) * Math.min(1, dt * 5);
     if (!idle && this.idleK < 0.002) this.idleK = 0;
-    const walk = this.idleK > 0 ? idleWalkPose((this.idleT += dt * 1000), s.profile) : null;
     const walkMix = this.idleK * this.idleK * (3 - 2 * this.idleK);
+    const gait = this.idleK > 0 ? idleGait((this.idleT += dt * 1000), this.params) : null;
+    if (gait) {
+      // El suelo avanza a la velocidad del pie apoyado (proporcional a la mezcla: al entrar o
+      // salir de la caminata la zancada y el avance se reducen juntos).
+      this.travel += GAIT_SPEED * walkMix * dt;
+      this.env.setTravel(this.travel);
+    }
+    const rootY = this.model.standHeight + (gait ? gait.bob * walkMix : 0);
+    this.model.root.position.y = rootY;
+    this.ghost.root.position.y = rootY;
     const now = performance.now();
     this.model.cover.visible = s.ui.showCover;
     this.env.overlay.visible = s.ui.showGrid;
@@ -353,13 +366,12 @@ export class DogBotScene {
           us = cfg.refUs ?? cfg.exploracion?.refUs ?? 1500;
         } else us = d.us;
       }
-      let target = estimatedAngleDeg(cfg, us);
-      const walkUs = walk?.[id];
-      if (walkUs !== undefined) target += (estimatedAngleDeg(cfg, walkUs) - target) * walkMix;
+      const target = estimatedAngleDeg(cfg, us);
       const prev = this.displayed.get(id) ?? target;
       const cur = prev + (target - prev) * 0.22;
       this.displayed.set(id, cur);
-      this.model.setJointAngle(id, cur);
+      // La marcha ya es continua: se mezcla sin el suavizado de consignas para no desfasarla del suelo.
+      this.model.setJointAngle(id, gait ? cur + (gait.angles[id] - cur) * walkMix : cur);
       if (s.mode === 'real' && s.ui.showGhost && rt.reqUs !== null) {
         ghostVisible = true;
         this.ghost.setJointAngle(id, estimatedAngleDeg(cfg, rt.reqUs));

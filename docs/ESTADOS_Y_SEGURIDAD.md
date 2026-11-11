@@ -47,16 +47,25 @@ compilación o carga en curso. Para volver a usarlo, ejecuta otra vez `INICIAR_D
 
 ### Caminata de reposo (sólo dibujo)
 
-Mientras **ningún canal tiene PWM** y el operador no ha tomado el control, el modelo 3D reproduce
-en bucle el trote de 4 patas de la secuencia «Propuesta · trote 4 patas». El visor lo indica con
-la etiqueta **REPOSO · caminata de demostración**.
+Mientras **ningún canal tiene PWM** y el operador no ha tomado el control, el modelo 3D camina
+en bucle (trote en diagonal) y el escenario avanza bajo él. El visor lo indica con la etiqueta
+**REPOSO · caminata de demostración**.
+
+- **Marcha con cinemática inversa**, en ángulos del modelo: no usa µs ni los signos del perfil,
+  así que las cuatro patas se mueven igual sea cual sea la calibración guardada. En la fase de
+  apoyo cada pie queda a la altura de la pose de referencia y retrocede a velocidad constante.
+- **El escenario se desplaza a esa misma velocidad** (≈ 116 mm/s a escala del modelo), de modo
+  que el pie apoyado no patina: en Marte avanzan el relieve, la arena y las rocas (el horizonte
+  queda fijo); en el Hangar, el suelo, las lámparas y el mobiliario, que se repiten en bucle.
+  Los anillos y la regla de calibración quedan anclados al robot.
 
 - **No es la pose del robot ni una consigna**: no escribe en el estado, no aparece en la
   telemetría y no envía nada al firmware. La tarjeta de la articulación y las etiquetas siguen
   mostrando las consignas reales. En ROBOT REAL el robot físico no se mueve aunque el modelo camine.
 - **Se detiene** al pulsar PWM ON, en cuanto hay PWM en algún canal, al mover un slider, aplicar
   una pose, reproducir una secuencia, activar la sesión de calibración o recibir una consigna del
-  firmware. La transición es suave (≈0,5 s) y después el modelo dibuja sólo las consignas.
+  firmware. La marcha y el avance del escenario se detienen juntos, de forma suave (≈0,5 s), y
+  después el modelo dibuja sólo las consignas.
 - **Se retoma** al desactivar PWM, al pulsar DETENER (Esc) o al cambiar de modo.
 - Se puede apagar con la capa **Caminata** del visor. Con «reducir movimiento» activado en el
   sistema operativo no se reproduce.
