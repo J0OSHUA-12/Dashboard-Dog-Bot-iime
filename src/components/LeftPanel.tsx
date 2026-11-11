@@ -52,13 +52,14 @@ export function HudRail() {
   const open = useApp((s) => s.ui.leftOpen);
   const setUi = useApp((s) => s.setUi);
   return (
-    <nav className="hud-rail" aria-label="Controles del robot">
+    <nav className={`hud-rail ${open ? 'has-open' : ''}`} aria-label="Controles del robot">
       {SECTIONS.map((s) => {
         const on = open && tab === s.id;
         return (
           <button
             key={s.id}
             className={`rail-btn ${on ? 'on' : ''}`}
+            title={s.label}
             aria-expanded={on}
             aria-controls="hud-flyout"
             onClick={() => setUi(on ? { leftOpen: false } : { leftOpen: true, leftTab: s.id })}

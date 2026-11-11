@@ -12,6 +12,7 @@ import { IChart, ICode, ICube, IPaw, ISliders } from './components/icons';
 import { stopAll } from './services/actions';
 import { initService } from './services/robotLink';
 import { startSimTelemetry } from './services/player';
+import { initIdleWalk } from './services/idleWalk';
 
 function useNarrow() {
   const q = '(max-width: 1099px)';
@@ -93,7 +94,11 @@ export function App() {
       if (e.key === 'Escape' && !document.querySelector('.modal-back')) void stopAll();
     };
     window.addEventListener('keydown', onKey, true);
-    return () => window.removeEventListener('keydown', onKey, true);
+    const stopIdleWatch = initIdleWalk();
+    return () => {
+      window.removeEventListener('keydown', onKey, true);
+      stopIdleWatch();
+    };
   }, []);
 
   if (closed) {
@@ -150,13 +155,15 @@ export function App() {
   const editorSpan = ui.rightW + HUD.gap;
   const pushes = editorOpen && winW - hudL - editorSpan - HUD.margin - HUD.camera - HUD.gap >= 540;
   const hudR = pushes ? editorSpan : 0;
-  const dockH = ui.bottomOpen ? ui.bottomH : 0;
+  // Alto del panel de datos desplegado, con su separación respecto a las cápsulas.
+  const dockH = ui.bottomOpen ? ui.bottomH + HUD.gap : 0;
   const hudVars = {
     '--hud-l': `${hudL}px`,
     '--hud-r': `${hudR}px`,
     '--flyout-w': `${ui.leftW}px`,
     '--editor-w': `${ui.rightW}px`,
     '--dock-h': `${dockH}px`,
+    '--dock-body-h': `${ui.bottomOpen ? ui.bottomH : 0}px`,
   } as React.CSSProperties;
   const insets = {
     left: hudL - HUD.gap,
@@ -167,7 +174,7 @@ export function App() {
 
   return (
     <div className="app hud-app">
-      <main className={`hud-stage ${ui.bottomOpen ? 'dock-open' : ''} ${editorOpen ? 'editor-open' : ''}`} style={hudVars}>
+      <main className={`hud-stage ${ui.bottomOpen ? 'dock-open' : ''} ${editorOpen ? 'editor-open' : ''}`} data-scene={ui.scene} style={hudVars}>
         <Viewport hud insets={insets} />
         <TopBar variant="hud" editorOpen={editorOpen} onToggleEditor={() => setEditorOpen((v) => !v)} />
         <HudRail />
