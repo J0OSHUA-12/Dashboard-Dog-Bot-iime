@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { jointLabel, JOINT_DESCRIPTION, jointKind } from '../../shared/joints';
 import { estimatedAngleDeg, getJoint, isCalibrated } from '../../shared/profile';
 import { getSequence } from '../../shared/sequences';
-import { realDisplayUs, UiState, useApp } from '../state/store';
+import { idleWalkActive } from '../services/idleWalk';
+import { realDisplayUs, SceneKind, UiState, useApp } from '../state/store';
 import { DogBotScene, SceneInsets, ViewName } from '../three/Scene';
 import { IAlert, IChevron, IInfo, ITarget } from './icons';
 
@@ -18,13 +19,19 @@ export const VIEWS: [ViewName, string][] = [
   ['superior', 'Superior'],
 ];
 
-type LayerKey = 'showCover' | 'showGrid' | 'showAxes' | 'showLabels' | 'showGhost';
-export const LAYERS: [LayerKey, string][] = [
+type LayerKey = 'showCover' | 'showGrid' | 'showAxes' | 'showLabels' | 'showGhost' | 'showIdle';
+export const LAYERS: [LayerKey, string, string?][] = [
   ['showCover', 'Tapa'],
   ['showGrid', 'Rejilla'],
   ['showAxes', 'Ejes'],
   ['showLabels', 'Etiquetas'],
   ['showGhost', 'Objetivo'],
+  ['showIdle', 'Caminata', 'Caminata de reposo: animación del modelo mientras PWM está apagado y no hay control manual. No es la pose del robot.'],
+];
+
+const SCENES: [SceneKind, string][] = [
+  ['marte', 'Marte'],
+  ['hangar', 'Hangar'],
 ];
 
 /** Indicadores del sistema. En el HUD van en la franja inferior; en móvil, sobre el visor. */
@@ -147,12 +154,48 @@ export function LayerToggles({ className, activeClass, idleClass = '' }: { class
   const setUi = useApp((s) => s.setUi);
   return (
     <>
-      {LAYERS.map(([k, l]) => (
-        <button key={k} className={`${className} ${ui[k] ? activeClass : idleClass}`} onClick={() => setUi({ [k]: !ui[k] } as Partial<UiState>)} aria-pressed={ui[k]}>
+      {LAYERS.map(([k, l, title]) => (
+        <button
+          key={k}
+          className={`${className} ${ui[k] ? activeClass : idleClass}`}
+          title={title}
+          onClick={() => {
+            setUi({ [k]: !ui[k] } as Partial<UiState>);
+            // Volver a encender la caminata la retoma aunque el operador hubiera tomado el control.
+            if (k === 'showIdle' && !ui[k]) useApp.getState().setManualControl(false);
+          }}
+          aria-pressed={ui[k]}
+        >
           {l}
         </button>
       ))}
     </>
+  );
+}
+
+/** Escenario 3D del visor: terreno marciano o nave de pruebas. Cambia en caliente. */
+export function SceneSwitch({ className, activeClass, idleClass = '' }: { className: string; activeClass: string; idleClass?: string }) {
+  const scene = useApp((s) => s.ui.scene);
+  const setUi = useApp((s) => s.setUi);
+  return (
+    <>
+      {SCENES.map(([k, l]) => (
+        <button key={k} className={`${className} ${scene === k ? activeClass : idleClass}`} onClick={() => setUi({ scene: k })} aria-pressed={scene === k}>
+          {l}
+        </button>
+      ))}
+    </>
+  );
+}
+
+/** Aviso visible mientras el modelo camina en reposo: lo que se ve no es una consigna. */
+function IdleTag() {
+  const idle = useApp(idleWalkActive);
+  if (!idle) return null;
+  return (
+    <span className="tag idle" title="Animación del visor mientras PWM está apagado. No se envía nada al robot y no es su pose. Se detiene al activar PWM o al mover un control; DETENER la retoma.">
+      REPOSO · caminata de demostración
+    </span>
   );
 }
 
@@ -191,6 +234,7 @@ export function Viewport({ hud, insets }: { hud?: boolean; insets?: SceneInsets 
       {!hud && <Kpis />}
       <div className="sim-banner">
         {mode === 'sim' ? <span className="tag sim">SIMULACIÓN · sin hardware</span> : <span className="tag real">ROBOT REAL · pose = consigna, no medición</span>}
+        <IdleTag />
         <SelChip />
       </div>
       <SelectionCard />
@@ -222,6 +266,12 @@ export function Viewport({ hud, insets }: { hud?: boolean; insets?: SceneInsets 
               <LayerToggles className="hud-link" activeClass="on" />
             </div>
           )}
+          {hud && (
+            <div className="hud-layers scene-switch" role="group" aria-label="Escenario 3D">
+              <span className="hud-label">Escenario</span>
+              <SceneSwitch className="hud-link" activeClass="on" />
+            </div>
+          )}
         </div>
       </div>
       {!hud && (
@@ -232,6 +282,8 @@ export function Viewport({ hud, insets }: { hud?: boolean; insets?: SceneInsets 
           </button>
           <span className="tb-sep" />
           <LayerToggles className="btn xs" activeClass="active" idleClass="ghost" />
+          <span className="tb-sep" />
+          <SceneSwitch className="btn xs" activeClass="active" idleClass="ghost" />
         </div>
       )}
     </div>

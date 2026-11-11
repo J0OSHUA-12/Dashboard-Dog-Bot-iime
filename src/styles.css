@@ -4,28 +4,35 @@
      queda reservado a DETENER. */
   --bg: #130c09;
   --surface: #1b120e;
-  --raised: rgba(255, 208, 164, 0.06);
-  --raised-2: rgba(255, 208, 164, 0.12);
-  --field: rgba(8, 4, 3, 0.4);
-  --border: rgba(255, 214, 178, 0.17);
-  --border-soft: rgba(255, 214, 178, 0.09);
-  --line: rgba(255, 214, 178, 0.09);
-  /* Cristal: ligero para botones y cromo, denso para paneles con texto. */
-  --glass: rgba(26, 15, 10, 0.54);
-  --glass-deep: rgba(20, 11, 8, 0.82);
-  --glass-edge: rgba(255, 212, 166, 0.15);
-  --glass-shine: inset 0 1px 0 rgba(255, 228, 196, 0.1);
+  --raised: rgba(255, 255, 255, 0.07);
+  --raised-2: rgba(255, 255, 255, 0.14);
+  --field: rgba(8, 4, 3, 0.36);
+  --border: rgba(255, 240, 224, 0.2);
+  --border-soft: rgba(255, 240, 224, 0.11);
+  --line: rgba(255, 240, 224, 0.11);
+  /* Cristal esmerilado claro: un velo blanco que deja pasar la luz del escenario.
+     --glass / --chip-blur: botones y cápsulas. --glass-deep / --hud-blur: paneles con texto
+     denso (mismo velo, pero el fondo se atenúa más para conservar el contraste). */
+  --glass: rgba(255, 255, 255, 0.15);
+  --glass-hover: rgba(255, 255, 255, 0.2);
+  --glass-deep: rgba(255, 255, 255, 0.1);
+  --glass-edge: rgba(255, 255, 255, 0.26);
+  --glass-shine: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  --chip-blur: blur(12px) brightness(0.8) saturate(1.25);
+  --chip-shadow: 0 1px 2px rgba(8, 3, 1, 0.6);
+  /* Texto del botón activo o bajo el cursor. */
+  --on-fg: var(--sel);
   --pop-bg: rgba(31, 19, 14, 0.92);
   --hud-bg: var(--glass-deep);
-  --hud-blur: blur(24px) saturate(1.15);
+  --hud-blur: blur(26px) brightness(0.38) saturate(1.25);
   --scrim: 14, 7, 4;
   --dim: #6d6056;
   --red: #d8342c;
   --orange: #f0872c;
   --sel: #ffc06e;
-  --text: #f7efe7;
-  --text2: #d6c7ba;
-  --muted: #ab9c8f;
+  --text: #fbf5ee;
+  --text2: #e9dfd5;
+  --muted: #cdbfb2;
   --ok: #4fd6a0;
   --warn: #f5b83d;
   --err: #ff8a83;
@@ -34,7 +41,7 @@
   --accent-glow: rgba(255, 164, 70, 0.26);
   --accent-edge: rgba(255, 192, 110, 0.42);
   --shadow-pop: 0 18px 44px rgba(8, 3, 1, 0.55), 0 2px 8px rgba(8, 3, 1, 0.35);
-  --shadow-hud: 0 18px 48px rgba(8, 3, 1, 0.4), 0 2px 6px rgba(8, 3, 1, 0.2);
+  --shadow-hud: 0 16px 40px rgba(8, 3, 1, 0.26), 0 2px 6px rgba(8, 3, 1, 0.14);
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --font: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --mono: 'JetBrains Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
@@ -53,7 +60,7 @@
   --vp-glow: #2a1a12;
   --rail-bg: rgba(255, 214, 178, 0.14);
   --knob: #fff3e6;
-  --table-head: rgba(31, 19, 14, 0.94);
+  --table-head: rgba(44, 30, 23, 0.9);
   --console-bg: rgba(6, 3, 2, 0.38);
   --console-fg: #d9cdc2;
   --backdrop: rgba(10, 5, 3, 0.58);
@@ -89,16 +96,21 @@
   color-scheme: light;
   --bg: #eadccb;
   --surface: #fbf4ec;
-  --raised: rgba(110, 64, 28, 0.06);
-  --raised-2: rgba(110, 64, 28, 0.12);
+  --raised: rgba(110, 64, 28, 0.07);
+  --raised-2: rgba(110, 64, 28, 0.13);
   --field: rgba(255, 255, 255, 0.62);
   --border: rgba(74, 42, 20, 0.2);
   --border-soft: rgba(74, 42, 20, 0.11);
   --line: rgba(74, 42, 20, 0.11);
-  --glass: rgba(255, 245, 234, 0.62);
-  --glass-deep: rgba(255, 247, 238, 0.84);
-  --glass-edge: rgba(255, 255, 255, 0.6);
-  --glass-shine: inset 0 1px 0 rgba(255, 255, 255, 0.65);
+  --glass: rgba(255, 255, 255, 0.46);
+  --glass-hover: rgba(255, 255, 255, 0.62);
+  --glass-deep: rgba(255, 255, 255, 0.66);
+  --glass-edge: rgba(255, 255, 255, 0.78);
+  --glass-shine: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  --chip-blur: blur(12px) brightness(1.06) saturate(1.15);
+  --chip-shadow: none;
+  --on-fg: #7a3a04;
+  --hud-blur: blur(26px) brightness(1.12) saturate(1.1);
   --pop-bg: rgba(255, 248, 240, 0.95);
   --scrim: 255, 242, 226;
   --dim: #a08d7e;
@@ -2138,7 +2150,7 @@ table.tbl td.num {
   }
   .view-note {
     max-width: calc(100% - 24px);
-    bottom: 92px;
+    bottom: 128px;
   }
   .split2 {
     grid-template-columns: 1fr;
@@ -2625,8 +2637,8 @@ table.tbl td.mono {
 }
 .hud-view::after {
   bottom: 0;
-  height: 190px;
-  background: linear-gradient(to top, rgba(var(--scrim), 0.82), rgba(var(--scrim), 0.5) 34%, rgba(var(--scrim), 0));
+  height: 76px;
+  background: linear-gradient(to top, rgba(var(--scrim), 0.74), rgba(var(--scrim), 0.3) 46%, rgba(var(--scrim), 0));
 }
 
 /* Material común */
@@ -2643,10 +2655,20 @@ table.tbl td.mono {
 .sel-chip,
 .leg-label {
   background: var(--glass);
-  -webkit-backdrop-filter: var(--hud-blur);
-  backdrop-filter: var(--hud-blur);
+  -webkit-backdrop-filter: var(--chip-blur);
+  backdrop-filter: var(--chip-blur);
   border: 1px solid var(--glass-edge);
   box-shadow: var(--shadow-hud), var(--glass-shine);
+}
+/* Paneles con texto denso: mismo velo, fondo más atenuado. */
+.hud,
+.sel-card,
+.view-note-body,
+.view-warn,
+.leg-label {
+  background: var(--glass-deep);
+  -webkit-backdrop-filter: var(--hud-blur);
+  backdrop-filter: var(--hud-blur);
 }
 .hud {
   position: absolute;
@@ -2654,7 +2676,6 @@ table.tbl td.mono {
   display: flex;
   min-width: 0;
   min-height: 0;
-  background: var(--glass-deep);
   border-radius: var(--radius-panel);
 }
 .hud > .panel,
@@ -2787,9 +2808,9 @@ table.tbl td.mono {
   padding: 0;
 }
 .hud-top .btn:not(.stop):hover:not(:disabled) {
-  background: var(--accent-soft);
+  background: linear-gradient(180deg, rgba(255, 190, 110, 0.36), rgba(255, 156, 66, 0.2));
   border-color: var(--accent-edge);
-  color: var(--sel);
+  color: var(--on-fg);
   transform: translateY(-1px);
   box-shadow: var(--shadow-hud), 0 8px 26px var(--accent-glow), var(--glass-shine);
 }
@@ -2797,9 +2818,12 @@ table.tbl td.mono {
   transform: translateY(0) scale(0.98);
 }
 .hud-top .btn.active {
-  color: var(--sel);
+  color: var(--on-fg);
   border-color: var(--accent-edge);
-  background: var(--accent-soft);
+  background: linear-gradient(180deg, rgba(255, 190, 110, 0.34), rgba(255, 156, 66, 0.18));
+}
+.hud-top .btn:not(.stop) {
+  text-shadow: var(--chip-shadow);
 }
 .hud-top .btn:disabled {
   opacity: 0.6;
@@ -2855,8 +2879,8 @@ table.tbl td.mono {
   height: 68px;
   padding: 0 4px;
   border-radius: 18px;
-  border-color: transparent;
-  color: var(--text2);
+  color: var(--text);
+  text-shadow: var(--chip-shadow);
   cursor: pointer;
   font-family: var(--hud-font);
   font-size: 12px;
@@ -2865,16 +2889,46 @@ table.tbl td.mono {
   text-transform: uppercase;
   white-space: nowrap;
   transform-origin: left center;
-  transition: transform 0.32s var(--ease-out), background 0.2s, color 0.2s, border-color 0.2s, box-shadow 0.3s;
+  transition: transform 0.32s var(--ease-out), height 0.42s var(--ease-out), width 0.42s var(--ease-out), background 0.2s, color 0.2s, border-color 0.2s, box-shadow 0.3s;
 }
 .rail-btn svg {
-  transition: transform 0.32s var(--ease-out);
+  flex: none;
+  transition: transform 0.42s var(--ease-out);
+}
+.rail-btn > span:not(.dot) {
+  max-height: 16px;
+  overflow: hidden;
+  transition: max-height 0.42s var(--ease-out), opacity 0.24s, margin 0.42s var(--ease-out);
+}
+/* Con un módulo abierto, el resto del riel se compacta a sólo icono y cede el protagonismo. */
+.hud-rail {
+  align-items: center;
+}
+.hud-rail .rail-btn {
+  width: var(--rail-w);
+}
+.hud-rail.has-open .rail-btn:not(.on) {
+  width: 58px;
+  height: 46px;
+  border-radius: 15px;
+}
+.hud-rail.has-open .rail-btn:not(.on) svg {
+  transform: scale(0.84);
+}
+.hud-rail.has-open .rail-btn:not(.on) > span:not(.dot) {
+  max-height: 0;
+  margin-top: -6px;
+  opacity: 0;
+}
+.hud-rail.has-open .rail-btn:not(.on) .rail-dot {
+  top: 6px;
+  right: 8px;
 }
 .rail-btn:hover,
 .rail-btn:focus-visible {
   transform: scale(1.07);
-  color: var(--sel);
-  background: linear-gradient(180deg, rgba(255, 186, 104, 0.24), rgba(255, 150, 60, 0.1)), var(--glass);
+  color: var(--on-fg);
+  background: linear-gradient(180deg, rgba(255, 190, 110, 0.36), rgba(255, 156, 66, 0.2));
   border-color: var(--accent-edge);
   box-shadow: var(--shadow-hud), 0 10px 32px var(--accent-glow), var(--glass-shine);
   z-index: 1;
@@ -2890,9 +2944,10 @@ table.tbl td.mono {
   outline-offset: 2px;
 }
 .rail-btn.on {
-  color: var(--sel);
-  background: linear-gradient(180deg, rgba(255, 186, 104, 0.2), rgba(255, 150, 60, 0.07)), var(--glass-deep);
+  color: var(--on-fg);
+  background: linear-gradient(180deg, rgba(255, 190, 110, 0.34), rgba(255, 156, 66, 0.18));
   border-color: var(--accent-edge);
+  box-shadow: var(--shadow-hud), 0 8px 28px var(--accent-glow), var(--glass-shine);
 }
 /* El botón activo señala al panel que abrió. */
 .rail-btn.on::after {
@@ -2994,13 +3049,22 @@ table.tbl td.mono {
   white-space: normal;
 }
 
-/* ---------- Barra de pestañas de datos ---------- */
-.hud-dock {
+/* ---------- Datos: cápsulas flotantes y panel desplegable ---------- */
+/* Sin contenedor: cada opción es una cápsula y el escenario se ve entre ellas. */
+.hud.hud-dock {
   left: var(--hud-l);
   right: calc(var(--m) + var(--cam-w) + 12px + var(--hud-r));
   bottom: var(--status-h);
-  border-radius: 22px;
+  background: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
   transition: left var(--slide), right var(--slide);
+}
+.hud-dock > .bottom {
+  overflow: visible;
 }
 .data-dock {
   display: flex;
@@ -3010,10 +3074,21 @@ table.tbl td.mono {
   position: relative;
   display: flex;
   flex-direction: column;
-  height: var(--dock-h);
+  height: var(--dock-body-h);
   min-height: 0;
+  margin-bottom: 0;
   overflow: hidden;
-  transition: height 0.42s var(--ease-out);
+  border: 0 solid var(--glass-edge);
+  border-radius: 22px;
+  transition: height 0.42s var(--ease-out), margin-bottom 0.42s var(--ease-out);
+}
+.data-dock.open .dock-body {
+  margin-bottom: 12px;
+  border-width: 1px;
+  background: var(--glass-deep);
+  -webkit-backdrop-filter: var(--hud-blur);
+  backdrop-filter: var(--hud-blur);
+  box-shadow: var(--shadow-hud), var(--glass-shine);
 }
 .data-dock.open .dock-body > .fill {
   animation: pop-in 0.34s var(--ease-out);
@@ -3030,47 +3105,76 @@ table.tbl td.mono {
 .data-dock > .tabs {
   height: var(--tabs-h);
   align-items: center;
-  gap: 4px;
-  padding: 0 8px;
-  border-bottom: 0;
-  border-top: 1px solid transparent;
-  overflow-x: auto;
-  scrollbar-width: none;
+  gap: 12px;
+  padding: 0;
+  border: 0;
+  overflow: visible;
 }
-.data-dock > .tabs::-webkit-scrollbar {
+.data-dock > .tabs > .spacer {
   display: none;
 }
-.data-dock.open > .tabs {
-  border-top-color: var(--line);
-}
-.data-dock > .tabs button[role='tab'] {
+.data-dock > .tabs > button,
+.data-dock > .tabs > .tag {
+  flex: none;
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  height: 34px;
-  padding: 0 13px;
-  border: 0;
-  border-radius: 12px;
-  color: var(--text2);
+  height: 40px;
+  padding: 0 15px;
+  border-radius: 14px;
+  background: var(--glass);
+  -webkit-backdrop-filter: var(--chip-blur);
+  backdrop-filter: var(--chip-blur);
+  border: 1px solid var(--glass-edge);
+  box-shadow: var(--shadow-hud), var(--glass-shine);
+  color: var(--text);
+  text-shadow: var(--chip-shadow);
   font-family: var(--hud-font);
   font-size: 14px;
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  transition: background 0.2s, color 0.2s, transform 0.3s var(--ease-out);
+  white-space: nowrap;
+  transition: background 0.2s, color 0.2s, border-color 0.2s, box-shadow 0.3s, transform 0.32s var(--ease-out);
 }
-.data-dock > .tabs button[role='tab']:hover {
-  color: var(--sel);
-  background: var(--accent-soft);
+.data-dock > .tabs > button {
+  cursor: pointer;
 }
-.data-dock > .tabs button[role='tab'].on {
-  color: var(--sel);
-  background: var(--accent-soft);
-  box-shadow: inset 0 0 0 1px var(--or-bd);
+.data-dock > .tabs > button:hover {
+  color: var(--on-fg);
+  background: linear-gradient(180deg, rgba(255, 190, 110, 0.36), rgba(255, 156, 66, 0.2));
+  border-color: var(--accent-edge);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-hud), 0 10px 30px var(--accent-glow), var(--glass-shine);
 }
-.data-dock > .tabs button[role='tab']:focus-visible {
+.data-dock > .tabs > button:active {
+  transform: translateY(0) scale(0.98);
+}
+.data-dock > .tabs > button.on {
+  color: var(--on-fg);
+  background: linear-gradient(180deg, rgba(255, 190, 110, 0.34), rgba(255, 156, 66, 0.18));
+  border-color: var(--accent-edge);
+  box-shadow: var(--shadow-hud), 0 8px 28px var(--accent-glow), var(--glass-shine);
+}
+.data-dock > .tabs > button:focus-visible {
   outline: 2px solid var(--sel);
-  outline-offset: -2px;
+  outline-offset: 2px;
+}
+.data-dock > .tabs > .btn.icon {
+  width: 40px;
+  padding: 0;
+}
+.data-dock > .tabs > .tag.sim {
+  color: var(--sim-fg);
+  cursor: default;
+}
+.data-dock > .tabs > .tag.sim::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--sim);
+  box-shadow: 0 0 8px var(--sim);
 }
 .tab-short {
   display: none;
@@ -3433,7 +3537,7 @@ table.tbl td.mono {
 .hud-view .view-note {
   left: var(--hud-l);
   bottom: calc(var(--status-h) + var(--tabs-h) + var(--dock-h) + 12px);
-  max-width: min(640px, calc(100% - var(--hud-l) - var(--cam-w) - 40px));
+  max-width: min(920px, calc(100% - var(--hud-l) - var(--cam-w) - 40px));
   transition: left var(--slide), bottom 0.42s var(--ease-out);
 }
 .view-note-row {
@@ -3459,10 +3563,31 @@ table.tbl td.mono {
   padding: 0 4px 0 11px;
   border-radius: 10px;
   background: var(--glass);
-  -webkit-backdrop-filter: var(--hud-blur);
-  backdrop-filter: var(--hud-blur);
+  -webkit-backdrop-filter: var(--chip-blur);
+  backdrop-filter: var(--chip-blur);
   border: 1px solid var(--glass-edge);
   box-shadow: var(--shadow-hud), var(--glass-shine);
+}
+.scene-switch .hud-link[aria-pressed='false']::before {
+  display: none;
+}
+.scene-switch .hud-link[aria-pressed='false'] {
+  color: var(--text2);
+}
+.tag.idle {
+  color: var(--sel);
+  background: rgba(120, 70, 20, 0.5);
+  border-color: var(--accent-edge);
+}
+:root[data-theme='light'] .tag.idle {
+  background: rgba(255, 240, 220, 0.86);
+}
+/* En el hangar los velos son neutros, no terrosos. */
+.hud-stage[data-scene='hangar'] {
+  --scrim: 8, 7, 6;
+}
+:root[data-theme='light'] .hud-stage[data-scene='hangar'] {
+  --scrim: 238, 235, 230;
 }
 .hud-layers .hud-label {
   margin-right: 4px;
@@ -3566,12 +3691,20 @@ table.tbl td.mono {
   }
 }
 @container dock (max-width: 920px) {
-  .dock-extra {
+  .data-dock > .tabs .dock-extra {
     display: none;
   }
-  .data-dock > .tabs button[role='tab'] {
-    padding: 0 10px;
-    gap: 6px;
+  .data-dock > .tabs > .btn:not(.icon) {
+    width: 40px;
+    padding: 0;
+    justify-content: center;
+  }
+  .data-dock > .tabs > button {
+    padding: 0 12px;
+    gap: 7px;
+  }
+  .data-dock > .tabs {
+    gap: 10px;
   }
 }
 @container dock (max-width: 840px) {
@@ -3584,6 +3717,16 @@ table.tbl td.mono {
   }
   .data-dock .tab-short {
     display: inline;
+  }
+}
+@container dock (max-width: 660px) {
+  .data-dock > .tabs > button {
+    padding: 0 10px;
+    gap: 6px;
+    letter-spacing: 0.05em;
+  }
+  .data-dock > .tabs {
+    gap: 8px;
   }
 }
 @container dock (max-width: 540px) {
@@ -3614,6 +3757,9 @@ table.tbl td.mono {
   .rail-btn {
     height: 58px;
     gap: 4px;
+  }
+  .hud-rail.has-open .rail-btn:not(.on) {
+    height: 42px;
   }
   .hud-rail {
     gap: 6px;
@@ -3650,6 +3796,8 @@ table.tbl td.mono {
   }
   .rail-btn,
   .rail-btn svg,
+  .rail-btn > span:not(.dot),
+  .data-dock > .tabs > button,
   .hud-top .btn,
   .dial-home,
   .dial-zoom {
@@ -3658,6 +3806,7 @@ table.tbl td.mono {
   .rail-btn:hover,
   .rail-btn:focus-visible,
   .rail-btn:active,
+  .data-dock > .tabs > button:hover,
   .hud-top .btn:hover:not(:disabled),
   .dial-home:hover,
   .dial-zoom:hover {

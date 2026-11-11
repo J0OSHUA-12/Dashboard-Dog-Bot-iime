@@ -22,6 +22,15 @@ export function TopBar({ variant = 'bar', editorOpen, onToggleEditor }: { varian
   const pwmCount = link.enabled.length;
   const pwmOn = real && pwmCount > 0;
   const hud = variant === 'hud';
+  // Al pulsar PWM ON el visor deja la caminata de reposo; si no llega a activarse (se canceló
+  // el diálogo o no había canales elegibles), la retoma.
+  const pressPwmOn = () => {
+    const app = useApp.getState();
+    app.setManualControl(true);
+    void togglePwmAll().finally(() => {
+      if (useApp.getState().link.enabled.length === 0) useApp.getState().setManualControl(false);
+    });
+  };
 
   return (
     <header className={`topbar ${hud ? 'hud-top' : ''}`}>
@@ -79,7 +88,7 @@ export function TopBar({ variant = 'bar', editorOpen, onToggleEditor }: { varian
           ) : (
             <button
               className="btn sm pwm-on"
-              onClick={togglePwmAll}
+              onClick={pressPwmOn}
               aria-pressed={false}
               disabled={!real || !compatible || st === 'enlace-perdido' || !link.controller}
               title={

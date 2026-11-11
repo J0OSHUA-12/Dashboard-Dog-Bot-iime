@@ -4,10 +4,12 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { CSS2DObject, CSS2DRenderer } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
 import { ALL_JOINTS, JointId, LEG_LABEL, LEGS, LegId, jointKind } from '../../shared/joints';
 import { estimatedAngleDeg, getJoint } from '../../shared/profile';
-import { realDisplayUs, useApp } from '../state/store';
+import { idleWalkActive, idleWalkPose } from '../services/idleWalk';
+import { SceneKind, realDisplayUs, useApp } from '../state/store';
 import { DogBotModel, S } from './DogBotModel';
+import { SceneEnvironment } from './CalibrationOverlay';
+import { HangarEnvironment } from './HangarEnvironment';
 import { EnvTheme, MarsEnvironment } from './MarsEnvironment';
-import { heightAt } from './marsTerrain';
 import { ModelParams } from './modelParams';
 
 export type ViewName = 'iso' | 'frontal' | 'lateral' | 'superior';
@@ -35,7 +37,11 @@ export class DogBotScene {
   private controls: OrbitControls;
   private model!: DogBotModel;
   private ghost!: DogBotModel;
-  private env: MarsEnvironment;
+  private env!: SceneEnvironment;
+  private sceneKind: SceneKind | null = null;
+  /** Mezcla 0–1 hacia la caminata de reposo y su reloj (ms). */
+  private idleK = 0;
+  private idleT = 0;
   private axes: THREE.AxesHelper;
   private ring: THREE.Mesh;
   private raycaster = new THREE.Raycaster();
@@ -93,9 +99,7 @@ export class DogBotScene {
     });
 
     // Entorno: terreno marciano, cielo, luz de atardecer y trazos de calibración.
-    this.env = new MarsEnvironment(this.renderer);
-    this.scene.fog = this.env.fog;
-    this.scene.add(this.env.world, this.env.overlay);
+    this.setEnvironment(useApp.getState().ui.scene);
     this.axes = new THREE.AxesHelper(1.6);
     this.axes.position.y = 0.04;
     this.scene.add(this.axes);
@@ -289,12 +293,12 @@ export class DogBotScene {
     const now = performance.now();
     const dt = Math.min(0.1, (now - this.lastFrame) / 1000);
     this.lastFrame = now;
-    this.updateFromState();
+    this.updateFromState(dt);
     this.applyShift();
     this.controls.update();
     // La cámara nunca queda bajo el relieve.
     const cam = this.camera.position;
-    const floor = heightAt(cam.x, cam.z) + 0.3;
+    const floor = this.env.heightAt(cam.x, cam.z) + 0.3;
     if (cam.y < floor) cam.y = floor;
     this.env.update(dt);
     if (this.onCamera) {
@@ -304,8 +308,28 @@ export class DogBotScene {
     this.labels.render(this.scene, this.camera);
   };
 
-  private updateFromState() {
+  /** Cambia de escenario (Marte ⇄ Hangar) en caliente; el robot y la cámara no se tocan. */
+  private setEnvironment(kind: SceneKind) {
+    if (this.env) {
+      this.scene.remove(this.env.world, this.env.overlay);
+      this.env.dispose();
+    }
+    this.sceneKind = kind;
+    this.env = kind === 'hangar' ? new HangarEnvironment(this.renderer) : new MarsEnvironment(this.renderer);
+    this.env.setTheme(this.theme);
+    this.scene.fog = this.env.fog;
+    this.scene.add(this.env.world, this.env.overlay);
+  }
+
+  private updateFromState(dt: number) {
     const s = useApp.getState();
+    if (s.ui.scene !== this.sceneKind) this.setEnvironment(s.ui.scene);
+    // Caminata de reposo: entra y sale con una mezcla suave (~0,5 s).
+    const idle = idleWalkActive(s);
+    this.idleK += ((idle ? 1 : 0) - this.idleK) * Math.min(1, dt * 5);
+    if (!idle && this.idleK < 0.002) this.idleK = 0;
+    const walk = this.idleK > 0 ? idleWalkPose((this.idleT += dt * 1000), s.profile) : null;
+    const walkMix = this.idleK * this.idleK * (3 - 2 * this.idleK);
     const now = performance.now();
     this.model.cover.visible = s.ui.showCover;
     this.env.overlay.visible = s.ui.showGrid;
@@ -329,7 +353,9 @@ export class DogBotScene {
           us = cfg.refUs ?? cfg.exploracion?.refUs ?? 1500;
         } else us = d.us;
       }
-      const target = estimatedAngleDeg(cfg, us);
+      let target = estimatedAngleDeg(cfg, us);
+      const walkUs = walk?.[id];
+      if (walkUs !== undefined) target += (estimatedAngleDeg(cfg, walkUs) - target) * walkMix;
       const prev = this.displayed.get(id) ?? target;
       const cur = prev + (target - prev) * 0.22;
       this.displayed.set(id, cur);

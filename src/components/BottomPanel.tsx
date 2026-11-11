@@ -653,9 +653,13 @@ export function BottomPanel({ dock, resizer }: { dock?: boolean; resizer?: React
         );
       })}
       <span className="spacer" />
-      {mode === 'sim' && <span className="tag sim dock-extra">DATOS SIMULADOS</span>}
+      {mode === 'sim' && (
+        <span className="tag sim dock-extra" title="En simulación, la tensión y la corriente son señales sintéticas: no representan el robot.">
+          DATOS SIMULADOS
+        </span>
+      )}
       <button className="btn xs ghost" onClick={exportSession} title="Exportar sesión (eventos y series, con modo y fuente)" aria-label="Exportar sesión en CSV">
-        <IDownload size={11} /> <span className="dock-extra">Sesión CSV</span>
+        <IDownload size={dock ? 13 : 11} /> <span className="dock-extra">Sesión CSV</span>
       </button>
       {dock && open && (
         <button className="btn xs ghost icon" onClick={() => setUi({ bottomOpen: false })} title="Plegar panel de datos" aria-label="Plegar panel de datos">

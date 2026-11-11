@@ -90,11 +90,16 @@ export interface UiState {
   showAxes: boolean;
   showLabels: boolean;
   showGhost: boolean;
+  /** Caminata de reposo: animación del visor mientras no hay PWM ni control manual. */
+  showIdle: boolean;
+  /** Escenario 3D del visor. */
+  scene: SceneKind;
   stepUs: number;
   theme: Theme;
 }
 
 export type Theme = 'dark' | 'light';
+export type SceneKind = 'marte' | 'hangar';
 
 export interface LinkUi {
   serviceAvailable: boolean;
@@ -159,6 +164,8 @@ const DEFAULT_UI: UiState = {
   showAxes: false,
   showLabels: true,
   showGhost: true,
+  showIdle: true,
+  scene: 'marte',
   stepUs: 10,
   theme: 'dark',
 };
@@ -185,6 +192,12 @@ export interface AppState {
   calibrationActive: boolean;
   /** El operador cerró el programa: la interfaz muestra la pantalla final. */
   closed: boolean;
+  /**
+   * El operador tomó el control de la pose (sliders, poses, secuencias o consignas del
+   * firmware): el visor deja la caminata de reposo y dibuja las consignas. Sólo afecta al dibujo.
+   */
+  manualControl: boolean;
+  setManualControl: (v: boolean) => void;
 
   setClosed: (closed: boolean) => void;
   setMode: (m: Mode) => void;
@@ -247,6 +260,10 @@ export const useApp = create<AppState>((set, get) => ({
   modelParams: sanitizeModelParams(load<Partial<ModelParams>>('model', DEFAULT_MODEL_PARAMS)),
   calibrationActive: false,
   closed: false,
+  manualControl: false,
+  setManualControl: (v) => {
+    if (get().manualControl !== v) set({ manualControl: v });
+  },
 
   setClosed: (closed) => set({ closed }),
 

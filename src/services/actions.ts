@@ -26,6 +26,8 @@ export async function stopAll() {
     st().addEvent('info', st().mode === 'sim' ? 'simulación' : 'interfaz', 'DETENER: trayectoria detenida.');
     toast('DETENER: secuencia detenida.', 'ok');
   }
+  // El visor vuelve a la caminata de reposo (sólo dibujo; con PWM activo sigue mostrando consignas).
+  st().setManualControl(false);
 }
 
 /**

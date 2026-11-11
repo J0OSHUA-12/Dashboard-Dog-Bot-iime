@@ -45,6 +45,22 @@ la secuencia, desarma (corta PWM) si el robot estaba armado, libera el puerto CO
 servicio local; la ventana de `INICIAR_DOGBOT.bat` se cierra sola. Se rechaza mientras haya una
 compilación o carga en curso. Para volver a usarlo, ejecuta otra vez `INICIAR_DOGBOT.bat`.
 
+### Caminata de reposo (sólo dibujo)
+
+Mientras **ningún canal tiene PWM** y el operador no ha tomado el control, el modelo 3D reproduce
+en bucle el trote de 4 patas de la secuencia «Propuesta · trote 4 patas». El visor lo indica con
+la etiqueta **REPOSO · caminata de demostración**.
+
+- **No es la pose del robot ni una consigna**: no escribe en el estado, no aparece en la
+  telemetría y no envía nada al firmware. La tarjeta de la articulación y las etiquetas siguen
+  mostrando las consignas reales. En ROBOT REAL el robot físico no se mueve aunque el modelo camine.
+- **Se detiene** al pulsar PWM ON, en cuanto hay PWM en algún canal, al mover un slider, aplicar
+  una pose, reproducir una secuencia, activar la sesión de calibración o recibir una consigna del
+  firmware. La transición es suave (≈0,5 s) y después el modelo dibuja sólo las consignas.
+- **Se retoma** al desactivar PWM, al pulsar DETENER (Esc) o al cambiar de modo.
+- Se puede apagar con la capa **Caminata** del visor. Con «reducir movimiento» activado en el
+  sistema operativo no se reproduce.
+
 ### Modo claro / oscuro
 
 El botón con el sol / la luna, junto a «Salir», alterna entre ambos temas. La preferencia se

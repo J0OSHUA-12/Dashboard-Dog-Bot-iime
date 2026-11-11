@@ -24,16 +24,23 @@ carga reales mediante Arduino CLI, telemetría honesta y registro de ensayos.
 |---|---|---|
 | ![](docs/capturas/portatil-1366.jpg) | ![](docs/capturas/editor-1366.jpg) | ![](docs/capturas/movil-3d.jpg) |
 
+![Escenario Hangar, 1920×1080](docs/capturas/hangar-1920.jpg)
+
 **Interfaz.** El visor 3D ocupa toda la ventana, sobre un terreno marciano procedural (escenario
 visual: no simula contacto ni dinámica; los anillos y la regla del suelo sí están a escala del
 modelo). Encima flotan paneles de cristal:
 
 - **Riel izquierdo**: Articulaciones, Calibración, Poses, Secuencia, Perfil y Conectar. Cada botón
-  abre su panel al lado; otro clic lo cierra.
+  abre su panel al lado (los demás se compactan a sólo icono); otro clic lo cierra.
 - **Arriba a la derecha**: Editor, PWM ON/OFF, DETENER, modo claro/oscuro y Salir.
-- **Base**: pestañas de datos (Telemetría, Eventos, Monitor serie, Registro de ensayos y
-  Mediciones) que se despliegan al pulsarlas, la franja de indicadores y, en la esquina, las
-  vistas de cámara con el dial de órbita y el zoom.
+- **Base**: cápsulas de datos (Telemetría, Eventos, Monitor serie, Registro de ensayos y
+  Mediciones) que despliegan su panel al pulsarlas, la franja de indicadores y, en la esquina,
+  las vistas de cámara con el dial de órbita y el zoom.
+- **Escenario**: «Marte» o «Hangar» (nave de pruebas con suelo industrial y foco cenital). Se
+  cambia en caliente junto a las capas del visor; ambos son escenarios visuales.
+- **Caminata de reposo**: con PWM apagado y sin control manual, el modelo camina en bucle. Es
+  una animación del visor, no la pose del robot; ver
+  [docs/ESTADOS_Y_SEGURIDAD.md](docs/ESTADOS_Y_SEGURIDAD.md).
 
 > `docs/capturas/robot-real-puerto-virtual-1366.jpg` muestra el modo ROBOT REAL con un **puerto
 > serie virtual** conectado al firmware ejecutado en la PC (`firmware/pruebas_host`), sin hardware
